@@ -4,6 +4,10 @@ from schemas.models import AssessRequest, AssessResponse
 from workflow.vuln_detect.detector import detect_vulns
 from workflow.vuln_assess.assessor import assess_vulns
 from workflow.vuln_remediate.remediator import remediate_vulns
+from fastapi import APIRouter, Query
+from schemas.models import AssessRequest, AssessResponse
+from workflow.vuln_assess.assessor import assess_vulns, assess_vulns_df_and_save
+
 
 api_router = APIRouter()
 
@@ -18,9 +22,13 @@ def detect(req: dict):
     return {"repo_url": repo_url, "findings": [f.dict() for f in findings]}
 
 @api_router.post("/v1/vuln/assess", response_model=AssessResponse)
-def assess(req: AssessRequest):
+def assess(req: AssessRequest, save: bool = Query(False)):
     assessed = assess_vulns(req.findings)
-    return AssessResponse(findings=assessed)
+    artifacts = None
+    if save:
+        # Re-run through the DF path to persist (tiny overhead, but simple)
+        _, artifacts = assess_vulns_df_and_save(req.findings)
+    return AssessResponse(findings=assessed, artifacts=artifacts)
 
 @api_router.post("/v1/vuln/remediate")
 def remediate(req: dict):

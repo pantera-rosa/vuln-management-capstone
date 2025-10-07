@@ -1,62 +1,110 @@
-import asyncio
-from typing import List, Optional
+from __future__ import annotations
+from typing import List, Tuple, Optional
+import math
+import pandas as pd
+from utils.compat import model_to_dict
 from schemas.models import VulnScan, VulnAssessment
-from .providers import kev_contains, fetch_epss
+from utils.df import findings_to_df, save_assessment_frames
+from workflow.vuln_assess.providers import kev_contains, fetch_epss  # absolute imports
 
-W_IMPACT = 0.6
-W_LIKE   = 0.3
-W_KEV    = 0.1
+__all__ = ["assess_vulns", "assess_vulns_df", "assess_vulns_df_and_save"]
 
-def _best_cvss(v: VulnScan) -> Optional[float]:
+# ---- helpers ---------------------------------------------------------------
+
+def _pick_cvss(v: VulnScan) -> Optional[float]:
     for s in (v.cvss_v4_score, v.cvss_v3_score, v.cvss_v2_score):
         if s is not None:
-            return s
+            return float(s)
     return None
 
 def _normalize_cvss(score: Optional[float]) -> float:
     if score is None:
         return 0.0
-    return max(0.0, min(10.0, score)) / 10.0
+    # CVSS base is 0..10 → scale to 0..100
+    return max(0.0, min(100.0, (float(score) / 10.0) * 100.0))
 
-def _risk_label(score_0_100: float) -> str:
-    if score_0_100 >= 90: return "CRITICAL"
-    if score_0_100 >= 70: return "HIGH"
-    if score_0_100 >= 40: return "MEDIUM"
-    if score_0_100 >  0:  return "LOW"
-    return "NONE"
+def _label_for_score(score: float) -> str:
+    if score >= 90:
+        return "CRITICAL"
+    if score >= 70:
+        return "HIGH"
+    if score >= 40:
+        return "MEDIUM"
+    return "LOW"
 
-async def _assess_one(v: VulnScan) -> VulnAssessment:
-    epss = v.epss_score
-    if epss is None:
-        epss, _ = await fetch_epss(v.cve_id)
-    kev = await kev_contains(v.cve_id)
-
-    impact = _normalize_cvss(_best_cvss(v))
-    like   = float(epss or 0.0)
-    boost  = 1.0 if kev else 0.0
-
-    composite = (W_IMPACT * impact) + (W_LIKE * like) + (W_KEV * boost)
-    risk_0_100 = round(100 * max(0.0, min(1.0, composite)), 1)
-    label = _risk_label(risk_0_100)
-
-    return VulnAssessment(
-        **v.dict(),
-        kev=kev,
-        risk_score=risk_0_100,
-        risk_label=label,
-        rationale=(
-            f"Impact(CVSS={_best_cvss(v) if _best_cvss(v) is not None else 'NA'}), "
-            f"Likelihood(EPSS={epss if epss is not None else 'NA'}), "
-            f"KEV={'yes' if kev else 'no'} → risk={risk_0_100} ({label})"
-        )
-    )
+# ---- core API --------------------------------------------------------------
 
 def assess_vulns(findings: List[VulnScan]) -> List[VulnAssessment]:
-    loop = asyncio.new_event_loop()
-    try:
-        asyncio.set_event_loop(loop)
-        tasks = [_assess_one(VulnScan(**f.dict())) for f in findings]
-        out = loop.run_until_complete(asyncio.gather(*tasks))
-        return out
-    finally:
-        loop.close()
+    """
+    Enrich detector findings with KEV/EPSS/risk and return VulnAssessment models.
+    """
+    results: List[VulnAssessment] = []
+
+    for f in findings:
+        cvss = _pick_cvss(f)
+        cvss_norm = _normalize_cvss(cvss)
+
+        # EPSS: use provided value if available, otherwise try to fetch; if fetch fails, assume 0
+        epss = f.epss_score
+        if epss is None:
+            try:
+                epss = fetch_epss(f.cve_id)  # expected 0..1
+            except Exception:
+                epss = 0.0
+
+        kev = False
+        try:
+            kev = kev_contains(f.cve_id)
+        except Exception:
+            kev = False
+
+        # Simple weighted risk: 60% impact (CVSS), 30% likelihood (EPSS), 10% KEV flag
+        risk = 0.6 * cvss_norm + 0.3 * (float(epss) * 100.0) + 0.1 * (100.0 if kev else 0.0)
+        risk = round(risk, 1)
+        label = _label_for_score(risk)
+
+        rationale = (
+            f"Impact(CVSS={cvss if cvss is not None else 'n/a'}), "
+            f"Likelihood(EPSS={epss if epss is not None else 'n/a'}), "
+            f"KEV={'yes' if kev else 'no'} → risk={risk} ({label})"
+        )
+
+        base = model_to_dict(f)          # works on Pydantic v1 & v2
+        results.append(
+            VulnAssessment(
+            **base,
+            kev=kev,
+            risk_score=risk,
+            risk_label=label,
+            rationale=rationale,
+            )
+        )
+    return results
+
+# ---- DataFrame helpers -----------------------------------------------------
+
+def assess_vulns_df(findings: List[VulnScan]) -> pd.DataFrame:
+    """
+    Run enrichment and return a tidy pandas DataFrame.
+    """
+    assessed = assess_vulns(findings)
+    df = findings_to_df(assessed)
+    # Optional: column order for readability
+    cols = [
+        "cve_id","ghsa_id","package_name","package_version","ecosystem","language",
+        "cvss_v4_score","cvss_v3_score","cvss_v2_score","epss_score","kev",
+        "risk_score","risk_label","summary","description","references","ghsa_url"
+    ]
+    df = df[[c for c in cols if c in df.columns]]
+    return df
+
+def assess_vulns_df_and_save(
+    findings: List[VulnScan],
+    out_dir: str = "artifacts/assessments",
+) -> Tuple[pd.DataFrame, dict]:
+    """
+    Enrich → DataFrame → save CSV (+ Parquet if available). Return (df, paths).
+    """
+    df = assess_vulns_df(findings)
+    paths = save_assessment_frames(df, out_dir=out_dir)
+    return df, paths

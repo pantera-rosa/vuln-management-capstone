@@ -1,32 +1,42 @@
-import os, datetime as dt
-from typing import Optional, Tuple
-from utils.http import get_json
+from __future__ import annotations
+from functools import lru_cache
+from typing import Optional
+import httpx
 
-EPSS_BASE = "https://api.first.org/data/v1/epss"
-KEV_URL   = os.getenv(
-    "KEV_URL",
-    "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-)
+# EPSS and KEV endpoints
+_EPSS_API = "https://api.first.org/data/v1/epss?cve={cve}"
+_KEV_JSON = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
-_kev_cache: set[str] = set()
-_kev_loaded_at: Optional[dt.datetime] = None
+def fetch_epss(cve_id: str) -> float:
+    """
+    Synchronous EPSS fetcher.
+    Returns a float in [0,1]. Falls back to 0.0 on any issue.
+    """
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            r = client.get(_EPSS_API.format(cve=cve_id))
+            r.raise_for_status()
+            data = r.json()
+        recs = data.get("data") or []
+        if recs:
+            return float(recs[0].get("epss", 0.0) or 0.0)
+    except Exception:
+        pass
+    return 0.0
 
-async def kev_contains(cve_id: str) -> bool:
-    global _kev_cache, _kev_loaded_at
-    now = dt.datetime.utcnow()
-    if not _kev_loaded_at or (now - _kev_loaded_at).seconds > 3600:
-        data = await get_json(KEV_URL, params=None)
-        items = (data or {}).get("vulnerabilities") or (data or {}).get("known_exploited_vulnerabilities") or []
-        _kev_cache = {item.get("cveID") or item.get("cveId") for item in items if item.get("cveID") or item.get("cveId")}
-        _kev_loaded_at = now
-    return cve_id in _kev_cache
-
-async def fetch_epss(cve_id: str):
-    data = await get_json(EPSS_BASE, params={"cve": cve_id})
-    recs = (data or {}).get("data") or []
-    if not recs:
-        return None, None
-    rec = recs[0]
-    epss = float(rec.get("epss")) if rec.get("epss") is not None else None
-    pct = float(rec.get("percentile")) if rec.get("percentile") is not None else None
-    return epss, pct
+@lru_cache(maxsize=2048)
+def kev_contains(cve_id: str) -> bool:
+    """
+    Synchronous KEV check. Cached to avoid re-downloading.
+    """
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get(_KEV_JSON)
+            r.raise_for_status()
+            data = r.json()
+        for item in data.get("vulnerabilities", []):
+            if item.get("cveID") == cve_id:
+                return True
+    except Exception:
+        pass
+    return False

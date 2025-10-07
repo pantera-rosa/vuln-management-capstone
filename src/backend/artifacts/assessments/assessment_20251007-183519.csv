@@ -1,0 +1,2 @@
+cve_id,ghsa_id,package_name,package_version,ecosystem,language,cvss_v4_score,cvss_v3_score,cvss_v2_score,epss_score,kev,risk_score,risk_label,summary,description,references,ghsa_url
+CVE-2021-44228,GHSA-jfh8-c2jp-5v3q,org.apache.logging.log4j:log4j-core,2.14.1,Maven,Java,10.0,10.0,10.0,,True,98.3,CRITICAL,Log4Shell in Apache Log4j,JNDI lookup in Log4j may allow remote code execution.,['https://logging.apache.org/log4j/2.x/security.html'],https://github.com/advisories/GHSA-jfh8-c2jp-5v3q

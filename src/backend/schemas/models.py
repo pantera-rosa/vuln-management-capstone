@@ -1,5 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
+from typing import Dict
 
 # 👇 This is the detector output you provided
 class VulnScan(BaseModel):
@@ -39,3 +40,4 @@ class AssessRequest(BaseModel):
 class AssessResponse(BaseModel):
     repo_url: Optional[str] = None
     findings: List[VulnAssessment]
+    artifacts: Optional[Dict[str, str]] = None
