@@ -19,7 +19,7 @@ scan:
 	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('test/resources/verademo_sbom.spdx.json', 'test/resources/verademo_grype_scan_df.parquet')"
 
 assess:
-	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnScan; import pandas as pd; df=pd.read_parquet('test/resources/verademo_grype_scan_df.parquet'); vulns=[VulnScan(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
+	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnScan; import pandas as pd; import numpy as np; df=pd.read_parquet('test/resources/verademo_grype_scan_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnScan(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
 
 pipeline: sbom scan assess
 
@@ -29,6 +29,7 @@ inspect:
 clean:
 	rm -rf test/resources/*.spdx.json test/resources/*.parquet
 	rm -rf src/backend/artifacts/*
+	rm -rf artifacts/*
 	rm -rf verademo
 	rm -rf __pycache__ src/backend/__pycache__ src/backend/workflow/__pycache__
 

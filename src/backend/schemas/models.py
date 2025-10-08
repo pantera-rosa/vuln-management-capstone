@@ -2,22 +2,28 @@ from typing import List, Optional
 from pydantic import BaseModel
 from typing import Dict
 
+
 # 👇 This is the detector output you provided
 class VulnScan(BaseModel):
-    cve_id: str
-    ghsa_id: str
-    ghsa_url: str
+    id: str  # GHSA ID
+    related_id: str  # CVE ID
+    related_vuln_datasource: str
     language: str
     package_name: str
     package_version: str
-    ecosystem: str
-    cvss_v2_score: float | None
-    cvss_v3_score: float | None
-    cvss_v4_score: float | None
-    epss_score: float | None
+    fixed_version: Optional[str] = None
+    cvss_v2_score: Optional[float] = None
+    cvss_v2_version: Optional[str] = None
+    cvss_v3_score: Optional[str] = None  # CVSS vector string
+    cvss_v3_version: Optional[str] = None
+    cvss_v4_vector: Optional[str] = None
+    cvss_v4_version: Optional[str] = None
+    epss_score: Optional[float] = None
+    epss_percentile: Optional[float] = None
     summary: str
     description: str
-    references: list[str]
+    references: List[str]
+
 
 # 👇 Enriched result returned by assessment
 class VulnAssessment(VulnScan):
@@ -25,6 +31,7 @@ class VulnAssessment(VulnScan):
     risk_score: float | None = None
     risk_label: str | None = None
     rationale: Optional[str] = None
+
 
 # 👇 Remediation items returned by the remediate step
 class Remediation(BaseModel):
@@ -34,8 +41,10 @@ class Remediation(BaseModel):
     recommendation: str
     references: List[str] = []
 
+
 class AssessRequest(BaseModel):
     findings: List[VulnScan]
+
 
 class AssessResponse(BaseModel):
     repo_url: Optional[str] = None
