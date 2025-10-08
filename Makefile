@@ -4,7 +4,7 @@ install:
 	poetry install
 
 sbom:
-	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('.', 'test/resources/verademo_sbom.spdx.json')"
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('src/backend', 'test/resources/verademo_sbom.spdx.json')"
 
 scan:
 	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('test/resources/verademo_sbom.spdx.json', 'test/resources/verademo_grype_scan_df.parquet')"
@@ -13,6 +13,9 @@ assess:
 	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnScan; import pandas as pd; df=pd.read_parquet('test/resources/verademo_grype_scan_df.parquet'); vulns=[VulnScan(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
 
 pipeline: sbom scan assess
+
+inspect:
+	poetry run python -c "import pandas as pd; df=pd.read_parquet('test/resources/verademo_grype_scan_df.parquet'); print('shape=', df.shape); print('columns=', list(df.columns)); print(df.head(5).to_string(index=False))"
 
 clean:
 	rm -rf test/resources/*.spdx.json test/resources/*.parquet

@@ -2,8 +2,6 @@
 
 Automated Detection, Assessment, and Remediation of Unfixed Software Vulnerabilities Using Machine Learning
 
-## Quickstart
-
 ### Prerequisites
 
 - Python 3.11+
@@ -16,10 +14,11 @@ Automated Detection, Assessment, and Remediation of Unfixed Software Vulnerabili
 
 ```bash
 pipx install poetry
+poetry lock
 make install
 ```
 
-Completevulnerability management pipeline
+Complete vulnerability management pipeline
 
 ```bash
 make pipeline
@@ -38,13 +37,7 @@ make assess  # Risk assessment with EPSS/KEV
 **Scan Results (Parquet):**
 
 ```bash
-python - <<'PY'
-import pandas as pd
-df=pd.read_parquet('test/resources/verademo_grype_scan_df.parquet')
-print('shape=', df.shape)
-print('columns=', list(df.columns))
-print(df.head(5).to_string(index=False))
-PY
+make inspect
 ```
 
 **Risk Assessment Results (CSV/Parquet):**
