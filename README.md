@@ -18,19 +18,22 @@ poetry lock
 make install
 ```
 
-Complete vulnerability management pipeline
+**Complete vulnerability management pipeline:**
 
 ```bash
 make pipeline
 ```
 
-Or run individual steps
+**Individual steps:**
 
 ```bash
-make sbom    # Extract SBOM
-make scan    # Run vulnerability scan
-make assess  # Risk assessment with EPSS/KEV
+make clone-verademo  # Clone VeraDemo (deliberately vulnerable Java app)
+make sbom           # Extract SBOM from VeraDemo
+make scan           # Run vulnerability scan
+make assess         # Risk assessment with EPSS/KEV
 ```
+
+**Note:** This scans [VeraDemo](https://github.com/veracode/verademo) - a deliberately vulnerable Java web application designed for security testing.
 
 ### Inspect Results
 
@@ -100,8 +103,8 @@ from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom, perform_vul
 from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save
 from src.backend.schemas.models import VulnScan
 
-# Complete vulnerability management workflow
-extract_sbom('.', 'sbom.spdx.json')
+# Scan VeraDemo (deliberately vulnerable Java app)
+extract_sbom('verademo', 'sbom.spdx.json')
 df = perform_vuln_scan('sbom.spdx.json', 'results.parquet')
 
 # Risk assessment with external intelligence

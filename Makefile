@@ -3,7 +3,16 @@
 install:
 	poetry install
 
-sbom:
+clone-verademo:
+	@if [ ! -d "verademo" ]; then \
+		echo "Cloning VeraDemo repository..."; \
+		git clone https://github.com/veracode/verademo.git verademo; \
+	else \
+		echo "VeraDemo already exists, updating..."; \
+		cd verademo && git pull; \
+	fi
+
+sbom: clone-verademo
 	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('verademo', 'test/resources/verademo_sbom.spdx.json')"
 
 scan:
@@ -20,6 +29,7 @@ inspect:
 clean:
 	rm -rf test/resources/*.spdx.json test/resources/*.parquet
 	rm -rf src/backend/artifacts/*
+	rm -rf verademo
 	rm -rf __pycache__ src/backend/__pycache__ src/backend/workflow/__pycache__
 
 lint:

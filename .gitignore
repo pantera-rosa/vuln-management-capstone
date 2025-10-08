@@ -3,6 +3,7 @@
 .DS_Store
 .env
 .venv/
+verademo/
 
 # Windows Zone.Identifier files
 *:Zone.Identifier
