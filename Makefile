@@ -16,10 +16,10 @@ sbom: clone-verademo
 	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('verademo', 'test/resources/verademo_sbom.spdx.json')"
 
 scan:
-	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('test/resources/verademo_sbom.spdx.json', 'test/resources/verademo_grype_scan_df.parquet')"
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; vulns = perform_vuln_scan('test/resources/verademo_sbom.spdx.json', 'test/resources/verademo_grype_scan_df.parquet'); print(f'Found {len(vulns)} vulnerabilities')"
 
 assess:
-	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnScan; import pandas as pd; import numpy as np; df=pd.read_parquet('test/resources/verademo_grype_scan_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnScan(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; from src.backend.workflow.vuln_assess.assessor import assess_vulns, assess_vulns_df_and_save; vulns = perform_vuln_scan('test/resources/verademo_sbom.spdx.json'); assessed = assess_vulns(vulns); print(f'Assessed {len(assessed)} vulnerabilities'); assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
 
 pipeline: sbom scan assess
 
