@@ -6,7 +6,7 @@ app = FastAPI(title="VulnGuard", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8501", "http://127.0.0.1:8501", "*"],
+    allow_origins=["*"],  # TODO: restrict to only accepted origins as neede
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
