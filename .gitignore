@@ -2,6 +2,12 @@
 .DS_STORE
 .DS_Store
 .env
+.venv/
+verademo/
+
+# Windows Zone.Identifier files
+*:Zone.Identifier
+*.txt:Zone.Identifier
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
