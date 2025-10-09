@@ -13,11 +13,108 @@ __all__ = ["assess_vulns", "assess_vulns_df", "assess_vulns_df_and_save"]
 
 
 def _pick_cvss(v: VulnScan) -> Optional[float]:
-    # Try cvss_v2_score first (it's a float), then cvss_v4_vector (string), then cvss_v3_score (string)
+    # Try cvss_v2_score first (it's a float)
     if v.cvss_v2_score is not None:
         return float(v.cvss_v2_score)
-    # For now, return None for string CVSS vectors - in a real implementation you'd parse them
+
+    # Try to parse CVSS v3 vector string
+    if v.cvss_v3_score is not None and isinstance(v.cvss_v3_score, str):
+        return _parse_cvss_v3_vector(v.cvss_v3_score)
+
+    # Try to parse CVSS v4 vector string
+    if v.cvss_v4_vector is not None and isinstance(v.cvss_v4_vector, str):
+        return _parse_cvss_v4_vector(v.cvss_v4_vector)
+
     return None
+
+
+def _parse_cvss_v3_vector(vector: str) -> Optional[float]:
+    """Parse CVSS v3 vector string and return base score."""
+    try:
+        # Extract the vector part after "CVSS:3.x/"
+        if "CVSS:3." in vector:
+            vector_part = vector.split("CVSS:3.")[1].split("/")[1:]  # Skip version part
+        else:
+            vector_part = vector.split("/")
+
+        # Parse the vector components
+        metrics = {}
+        for component in vector_part:
+            if ":" in component:
+                key, value = component.split(":", 1)
+                metrics[key] = value
+
+        # Calculate base score from metrics
+        return _calculate_cvss_v3_base_score(metrics)
+    except Exception:
+        return None
+
+
+def _parse_cvss_v4_vector(vector: str) -> Optional[float]:
+    """Parse CVSS v4 vector string and return base score."""
+    try:
+        # Extract the vector part after "CVSS:4.0/"
+        if "CVSS:4.0/" in vector:
+            vector_part = vector.split("CVSS:4.0/")[1].split("/")
+        else:
+            vector_part = vector.split("/")
+
+        # Parse the vector components
+        metrics = {}
+        for component in vector_part:
+            if ":" in component:
+                key, value = component.split(":", 1)
+                metrics[key] = value
+
+        # Calculate base score from metrics
+        return _calculate_cvss_v4_base_score(metrics)
+    except Exception:
+        return None
+
+
+def _calculate_cvss_v3_base_score(metrics: dict) -> float:
+    """Calculate CVSS v3 base score from metrics."""
+    # Simplified CVSS v3 base score calculation
+    # This is a basic implementation - in production you'd want a full CVSS library
+
+    # Impact sub-score calculation
+    c = {"N": 0.0, "L": 0.22, "H": 0.56}.get(metrics.get("C", "N"), 0.0)
+    i = {"N": 0.0, "L": 0.22, "H": 0.56}.get(metrics.get("I", "N"), 0.0)
+    a = {"N": 0.0, "L": 0.22, "H": 0.56}.get(metrics.get("A", "N"), 0.0)
+
+    # Scope
+    s = metrics.get("S", "U")
+
+    if s == "U":  # Unchanged
+        impact = 6.42 * (c + i + a)
+    else:  # Changed
+        impact = 7.52 * (c + i + a - 0.029) - 3.25 * ((c + i + a - 0.02) ** 15)
+
+    # Exploitability sub-score calculation
+    av = {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2}.get(metrics.get("AV", "N"), 0.85)
+    ac = {"L": 0.77, "H": 0.44}.get(metrics.get("AC", "L"), 0.77)
+    pr = {"N": 0.85, "L": 0.62, "H": 0.27}.get(metrics.get("PR", "N"), 0.85)
+    ui = {"N": 0.85, "R": 0.62}.get(metrics.get("UI", "N"), 0.85)
+
+    exploitability = 8.22 * av * ac * pr * ui
+
+    # Base score
+    if impact <= 0:
+        return 0.0
+    elif s == "U":  # Unchanged
+        return min(10.0, round(impact + exploitability, 1))
+    else:  # Changed
+        return min(10.0, round(1.08 * (impact + exploitability), 1))
+
+
+def _calculate_cvss_v4_base_score(metrics: dict) -> float:
+    """Calculate CVSS v4 base score from metrics."""
+    # Simplified CVSS v4 base score calculation
+    # This is a basic implementation - CVSS v4 is more complex
+
+    # For now, use a simplified approach similar to v3
+    # In production, you'd want a proper CVSS v4 library
+    return _calculate_cvss_v3_base_score(metrics)
 
 
 def _normalize_cvss(score: Optional[float]) -> float:
