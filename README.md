@@ -46,8 +46,8 @@ make inspect
 **Risk Assessment Results (CSV/Parquet):**
 
 ```bash
-# Assessment results saved to artifacts/assessments/
-ls artifacts/assessments/
+# Assessment results saved to test/resources/assessments/
+ls test/resources/assessments/
 # assessment_YYYYMMDD-HHMMSS.csv
 # assessment_YYYYMMDD-HHMMSS.parquet
 ```
@@ -105,11 +105,11 @@ from src.backend.schemas.models import VulnScan
 
 # Scan VeraDemo (deliberately vulnerable Java app)
 extract_sbom('verademo', 'sbom.spdx.json')
-df = perform_vuln_scan('sbom.spdx.json', 'results.parquet')
+df = perform_vuln_scan('sbom.spdx.json', 'scan.json', 'results.parquet')
 
 # Risk assessment with external intelligence
 vulns = [VulnScan(**row) for row in df.to_dict('records')]
-assessed_df, paths = assess_vulns_df_and_save(vulns, 'artifacts/assessments')
+assessed_df, paths = assess_vulns_df_and_save(vulns, 'assessments')
 
 print(f"Found {len(df)} vulnerabilities")
 print(f"Risk assessment saved to {paths}")
