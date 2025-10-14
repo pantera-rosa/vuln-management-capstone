@@ -9,6 +9,10 @@ Automated Detection, Assessment, and Remediation of Unfixed Software Vulnerabili
   - macOS (Homebrew):
     - `brew install anchore/syft/syft`
     - `brew install --cask grype`
+    macOS/Linux:
+      `curl -sSfL https://get.anchore.io/syft | sudo sh -s -- -b /usr/local/bin`
+      `curl -sSfL https://get.anchore.io/syft | sudo sh -s -- -b /usr/local/bin`
+      `export PATH=/usr/local/bin:$PATH`
 
 ### Setup & Usage (Poetry + Make)
 
@@ -31,6 +35,7 @@ make clone-verademo  # Clone VeraDemo (deliberately vulnerable Java app)
 make sbom           # Extract SBOM from VeraDemo
 make scan           # Run vulnerability scan
 make assess         # Risk assessment with EPSS/KEV
+make clean          # Clean up generate result files and VeraDemo repo
 ```
 
 **Note:** This scans [VeraDemo](https://github.com/veracode/verademo) - a deliberately vulnerable Java web application designed for security testing.
