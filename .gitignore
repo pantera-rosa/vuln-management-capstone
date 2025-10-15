@@ -17,7 +17,7 @@ src/backend/workflow/__pycache__/
 src/backend/workflow/vuln_assess/__pycache__/
 src/backend/workflow/vuln_detect/__pycache__/
 src/backend/workflow/vuln_remediate/__pycache__/
-src/backend/workflow/vuln_assess/ingest_detect.py
+src/backend/workflow/vuln_assess/ingest_detect.py/
 
 # Windows Zone.Identifier files
 *:Zone.Identifier
