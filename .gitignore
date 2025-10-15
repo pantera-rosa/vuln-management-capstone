@@ -5,6 +5,18 @@
 .venv/
 verademo/
 artifacts/
+dvpwa/
+src/backend/__pycache__/
+src/backend/.venv/
+src/backend/app/__pycache__/
+src/backend/app/api/__pycache__/
+src/backend/app/api/v1/__pycache__/
+src/backend/schemas/__pycache__/
+src/backend/utils/__pycache__/
+src/backend/workflow/__pycache__/
+src/backend/workflow/vuln_assess/__pycache__/
+src/backend/workflow/vuln_detect/__pycache__/
+src/backend/workflow/vuln_remediate/__pycache__/
 
 # Windows Zone.Identifier files
 *:Zone.Identifier
