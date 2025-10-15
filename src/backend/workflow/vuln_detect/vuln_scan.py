@@ -65,16 +65,16 @@ def _extract_grype_df(grype_scan_result):
 		"related_id": grype_extracted_df['relatedVulnerabilities.id'],
 		"severity": grype_extracted_df["vulnerability.severity"],
 		"related_vuln_datasource": grype_extracted_df['relatedVulnerabilities.dataSource'],
-		"language": grype_extracted_df['artifact.language'],###
-		"package_name": grype_extracted_df['artifact.name'],###
-		"package_version": grype_extracted_df['artifact.version'],###
+		"language": grype_extracted_df['artifact.language'],
+		"package_name": grype_extracted_df['artifact.name'],
+		"package_version": grype_extracted_df['artifact.version'],
 		"fixed_version": grype_extracted_df['matchDetails.fix.suggestedVersion'],
-		"cvss_v2_score": grype_extracted_df['cvss_v2_vector'],###
+		"cvss_v2_score": grype_extracted_df['cvss_v2_vector'],
 		"cvss_v2_version": grype_extracted_df['cvss_v2_version'],
 		"cvss_v2_base_score": grype_extracted_df['cvss_v2_base_score'],
 		"cvss_v2_exploitability_score": grype_extracted_df['cvss_v2_exploitability_score'],
 		"cvss_v2_impact_score": grype_extracted_df['cvss_v2_impact_score'],
-		"cvss_v3_score": grype_extracted_df['cvss_v3_vector'],###
+		"cvss_v3_score": grype_extracted_df['cvss_v3_vector'],
 		"cvss_v3_version": grype_extracted_df['cvss_v3_version'],
 		"cvss_v3_base_score": grype_extracted_df['cvss_v3_base_score'],
 		"cvss_v3_exploitability_score": grype_extracted_df['cvss_v3_exploitability_score'],
@@ -84,11 +84,11 @@ def _extract_grype_df(grype_scan_result):
 		"cvss_v4_base_score": grype_extracted_df['cvss_v4_base_score'],
 		"cvss_v4_exploitability_score": grype_extracted_df['cvss_v4_exploitability_score'],
 		"cvss_v4_impact_score": grype_extracted_df['cvss_v4_impact_score'],
-		"epss_score": grype_extracted_df['vulnerability.epss.epss'],###
+		"epss_score": grype_extracted_df['vulnerability.epss.epss'],
 		"epss_percentile": grype_extracted_df['vulnerability.epss.percentile'],
-		"summary": grype_extracted_df['vulnerability.description'],###
-		"description": grype_extracted_df['relatedVulnerabilities.description'],###
-		"references": grype_extracted_df['relatedVulnerabilities.urls']###
+		"summary": grype_extracted_df['vulnerability.description'],
+		"description": grype_extracted_df['relatedVulnerabilities.description'],
+		"references": grype_extracted_df['relatedVulnerabilities.urls']
 	}
 
 	# construct final dataframe
