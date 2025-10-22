@@ -5,6 +5,7 @@
 .venv/
 verademo/
 artifacts/
+docker_artifacts/
 
 # Windows Zone.Identifier files
 *:Zone.Identifier

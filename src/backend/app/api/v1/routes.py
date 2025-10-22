@@ -18,7 +18,8 @@ def health():
 @api_router.post("/v1/vuln/detect")
 def detect(req: dict):
     repo_url = req.get("repo_url", "")
-    findings = detect_vulns(repo_url)
+    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    findings = detect_vulns(repo_url, dir_path=f"artifacts/detect/{repo_name}", sbom_path=f"artifacts/detect/{repo_name}_sbom.spdx.json", output_raw_scan_path=f"artifacts/detect/{repo_name}_scan.json", output_final_scan_path=f"artifacts/detect/{repo_name}_scan.parquet")
     return {"repo_url": repo_url, "findings": [f.dict() for f in findings]}
 
 @api_router.post("/v1/vuln/assess", response_model=AssessResponse)

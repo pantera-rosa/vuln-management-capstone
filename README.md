@@ -5,6 +5,7 @@ Automated Detection, Assessment, and Remediation of Unfixed Software Vulnerabili
 ### Prerequisites
 
 - Python 3.11+
+- Poetry: `pipx install poetry`
 - CLI tools: `syft` and `grype`
   - macOS (Homebrew):
     - `brew install anchore/syft/syft`
@@ -13,7 +14,6 @@ Automated Detection, Assessment, and Remediation of Unfixed Software Vulnerabili
 ### Setup & Usage (Poetry + Make)
 
 ```bash
-pipx install poetry
 poetry lock
 make install
 ```
@@ -46,8 +46,8 @@ make inspect
 **Risk Assessment Results (CSV/Parquet):**
 
 ```bash
-# Assessment results saved to test/resources/assessments/
-ls test/resources/assessments/
+# Assessment results saved to artifacts/assessments/
+ls artifacts/assessments/
 # assessment_YYYYMMDD-HHMMSS.csv
 # assessment_YYYYMMDD-HHMMSS.parquet
 ```
