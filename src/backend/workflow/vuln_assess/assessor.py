@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import List, Tuple, Optional
-import math
 import pandas as pd
 from src.backend.utils.compat import model_to_dict
 from src.backend.schemas.models import VulnScan, VulnAssessment
@@ -13,10 +12,13 @@ __all__ = ["assess_vulns", "assess_vulns_df", "assess_vulns_df_and_save"]
 
 
 def _pick_cvss(v: VulnScan) -> Optional[float]:
-    # Try cvss_v2_score first (it's a float), then cvss_v4_vector (string), then cvss_v3_score (string)
-    if v.cvss_v2_score is not None:
-        return float(v.cvss_v2_score)
-    # For now, return None for string CVSS vectors - in a real implementation you'd parse them
+    # Try cvss_v2_base_score first, then cvss_v4_base_score, then cvss_v3_base_score
+    if v.cvss_v2_base_score is not None:
+        return float(v.cvss_v2_base_score)
+    if v.cvss_v4_base_score is not None:
+        return float(v.cvss_v4_base_score)
+    if v.cvss_v3_base_score is not None:
+        return float(v.cvss_v3_base_score)
     return None
 
 
@@ -105,21 +107,38 @@ def assess_vulns_df(findings: List[VulnScan]) -> pd.DataFrame:
     cols = [
         "cve_id",
         "ghsa_id",
+        "severity",
+        "related_vuln_datasource",
+        "language",
         "package_name",
         "package_version",
-        "ecosystem",
-        "language",
-        "cvss_v4_score",
-        "cvss_v3_score",
+        "fixed_version",
         "cvss_v2_score",
+        "cvss_v2_version",
+        "cvss_v2_base_score",
+        "cvss_v2_exploitability_score",
+        "cvss_v2_impact_score",
+        "cvss_v3_score",
+        "cvss_v3_version",
+        "cvss_v3_base_score",
+        "cvss_v3_exploitability_score",
+        "cvss_v3_impact_score",
+        "cvss_v4_score",
+        "cvss_v4_version",
+        "cvss_v4_base_score",
+        "cvss_v4_exploitability_score",
+        "cvss_v4_impact_score",
         "epss_score",
+        "epss_percentile",
         "kev",
         "risk_score",
         "risk_label",
         "summary",
         "description",
         "references",
-        "ghsa_url",
+        "source_code_location",
+        "cwe_id",
+        "cwe_name"
     ]
     df = df[[c for c in cols if c in df.columns]]
     return df

@@ -45,7 +45,9 @@ def detect(
     """
     Run detector and save raw findings (VulnScan[]) to JSON.
     """
-    findings: List[VulnScan] = detect_vulns(repo_url)
+    # extract repo name from URL for dir_path
+    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    findings: List[VulnScan] = detect_vulns(repo_url, dir_path=f"artifacts/detect/{repo_name}", sbom_path=f"artifacts/detect/{repo_name}_sbom.spdx.json", output_raw_scan_path=f"artifacts/detect/{repo_name}_scan.json", output_final_scan_path=f"artifacts/detect/{repo_name}_scan.parquet")
     payload = [model_to_dict(f) for f in findings]
     _write_json(payload, out)
     typer.echo(f"✅ wrote {out} with {len(payload)} findings")
@@ -99,7 +101,8 @@ def pipeline(
     remediate_out = out_dir / "remediations/recommendations.json"
 
     # detect
-    findings = detect_vulns(repo_url)
+    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    findings = detect_vulns(repo_url, dir_path=f"artifacts/detect/{repo_name}", sbom_path=f"artifacts/detect/{repo_name}_sbom.spdx.json", output_raw_scan_path=f"artifacts/detect/{repo_name}_scan.json", output_final_scan_path=f"artifacts/detect/{repo_name}_scan.parquet")
     _write_json([model_to_dict(f) for f in findings], detect_out)
     typer.echo(f"🧭 detect → {detect_out}")
 
