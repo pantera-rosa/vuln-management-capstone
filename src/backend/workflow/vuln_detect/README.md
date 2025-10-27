@@ -1,18 +1,22 @@
 # Vulnerability Detection
-Contains scripts and Dockerfiles needed for vulnerability scanning and vulnerable code path identification. For other methods of testing locally with Poetry + Make or library usage, see root README.md. Run all of the following from the root directory.
-## Testing Locally with Docker
+Contains scripts and Dockerfiles needed for vulnerability scanning. For other methods of testing locally with Poetry + Make or library usage, see root README.md. Run all of the following from the root directory.
+## Prerequesites
+Set up your `.env` file to contain the following environment variables.
 ```
-#### Build Docker Image
+GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_...(optional, provides higher rate limits for GHSA API requests)
+```
+## Testing Locally with Docker
+### Build Docker Image
 ```
 docker build -f src/backend/workflow/vuln_detect/Dockerfile -t vuln_detect .
 ```
-#### Run Docker Container
+### Run Docker Container
 Sample command:
 This writes results to the path `/mnt/c/Users/jtyeu/MIDS/DATASCI_210/vuln-management-capstone/docker_artifacts`. Replace this with your own absolute path. Replace the other arguments as desired.
 ```
-docker run  -v /mnt/c/Users/jtyeu/MIDS/DATASCI_210/vuln-management-capstone/docker_artifacts:/vuln_detect/artifacts vuln_detect --repo_url=https://github.com/veracode/verademo.git --dir_path=artifacts/repos/verademo --sbom_path=artifacts/detect/verademo_sbom.spdx.json --output_raw_scan_path=artifacts/detect/verademo_grype_sbom_scan.json --output_final_scan_path=artifacts/detect/verademo_scan_pd.parquet --display=True
+docker run  -v /mnt/c/Users/jtyeu/MIDS/DATASCI_210/vuln-management-capstone/docker_artifacts:/vuln_detect/artifacts --env-file .env vuln_detect --repo_url=https://github.com/veracode/verademo.git --dir_path=artifacts/repos/verademo --sbom_path=artifacts/detect/verademo_sbom.spdx.json --output_raw_scan_path=artifacts/detect/verademo_grype_sbom_scan.json --output_final_scan_path=artifacts/detect/verademo_scan_pd.parquet --display=True
 ```
-Sample expected output:
+Sample expected output: (exact output may vary but you should see final dataframe snippet)
 ```
 Extracting SBOM from directory: artifacts/repos/verademo to artifacts/detect/verademo_sbom.spdx.json
 Performing vulnerability scan on SBOM: artifacts/detect/verademo_sbom.spdx.json

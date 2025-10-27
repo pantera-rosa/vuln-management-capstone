@@ -37,9 +37,30 @@ class VulnScan(BaseModel):
     cwe_id: Optional[str] = None
     cwe_name: Optional[str] = None
 
+class VulnCodeIdentification(VulnScan):
+    path: Optional[str] = None,
+    start_line: Optional[float] = None,
+    start_col:  Optional[float] = None,
+    start_offset: Optional[float] = None,
+    end_line: Optional[float] = None,
+    end_col: Optional[float] = None,
+    end_offset: Optional[float] = None,
+    extra_message: Optional[str] = None,
+    extra_metadata_likelihood: Optional[str] = None,
+    extra_metadata_impact: Optional[str] = None,
+    extra_metadata_confidence: Optional[str] = None,
+    extra_metadata_vulnerability_class: Optional[str] = None,
+    extra_severity: Optional[str] = None,
+    extra_lines: Optional[str] = None,
+    extra_validation_state: Optional[str] = None,
+    extra_dataflow_trace_taint_source: Optional[str] = None,
+    extra_dataflow_trace_intermediate_vars: Optional[str] = None,
+    extra_dataflow_trace_taint_sink: Optional[str] = None,
+    extra_fix: Optional[str] = None,
+    filename: Optional[str] = None
 
 # 👇 Enriched result returned by assessment
-class VulnAssessment(VulnScan):
+class VulnAssessment(VulnCodeIdentification):
     kev: bool | None = None
     risk_score: float | None = None
     risk_label: str | None = None

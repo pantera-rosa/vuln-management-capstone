@@ -6,9 +6,19 @@ from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan, extrac
 from src.backend.utils.cmd import run_cmd
 import numpy as np
 
-def detect_vulns(repo_url: Optional[str], dir_path: Optional[str], sbom_path: str, output_raw_scan_path: Optional[str], output_final_scan_path: str) -> List[VulnScan]:
+def detect_vulns(
+    repo_url: Optional[str],
+    dir_path: Optional[str],
+    sbom_path: str,
+    output_raw_scan_path: Optional[str],
+    output_final_scan_path: str,
+    display: bool = False,
+) -> List[VulnScan]:
+    # Validate args locally instead of relying on an external `parser` object.
     if repo_url and not dir_path:
-        parser.error("--dir_path must be provided if --repo_url is specified.")
+        # prefer raising an exception so callers can handle it; argparse's parser.error
+        # is not available here when the function is imported programmatically.
+        raise ValueError("--dir_path must be provided if --repo_url is specified.")
 
     # if repo_url is provided and dir_path doesn't exist or is empty, clone the repo
     if repo_url and dir_path and (not os.path.exists(dir_path) or not os.listdir(dir_path)):
@@ -27,7 +37,7 @@ def detect_vulns(repo_url: Optional[str], dir_path: Optional[str], sbom_path: st
 	)
     print(f"Vulnerability scan completed. Saved to {output_final_scan_path}.")
 
-    if args.display:
+    if display:
         print(final_df)
 
     # convert final_df to List[VulnScan]
@@ -51,4 +61,6 @@ if __name__ == "__main__":
         dir_path=args.dir_path,
         sbom_path=args.sbom_path,
         output_raw_scan_path=args.output_raw_scan_path,
-        output_final_scan_path=args.output_final_scan_path)
+        output_final_scan_path=args.output_final_scan_path,
+        display=bool(args.display),
+    )

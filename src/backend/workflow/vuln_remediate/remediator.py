@@ -1,7 +1,7 @@
 from typing import List, Union
-from schemas.models import VulnScan, VulnAssessment, Remediation  # ✅ absolute
+from schemas.models import VulnScan, VulnCodeIdentification, VulnAssessment, Remediation  # ✅ absolute
 
-AnyFinding = Union[VulnAssessment, VulnScan]
+AnyFinding = Union[VulnAssessment, VulnScan, VulnCodeIdentification]
 
 def remediate_vulns(items: List[AnyFinding]) -> List[Remediation]:
     recs: List[Remediation] = []
