@@ -1,15 +1,17 @@
 # VulnGuard — Vulnerability Management Library
 
-Automated Detection, Assessment, and Remediation of Unfixed Software Vulnerabilities Using Machine Learning
+Automated Detection, Identification, Assessment, and Remediation of Unfixed Software Vulnerabilities Using Machine Learning
 
 ### Prerequisites
 
 - Python 3.11+
 - Poetry: `pipx install poetry`
-- CLI tools: `syft` and `grype`
+- CLI tools: `syft`, `grype`, `gh`, `semgrep`
   - macOS (Homebrew):
     - `brew install anchore/syft/syft`
     - `brew install --cask grype`
+      `brew install gh`
+      `python3 -m pip install semgrep`
 
 ### Setup & Usage (Poetry + Make)
 
@@ -28,9 +30,11 @@ make pipeline
 
 ```bash
 make clone-verademo  # Clone VeraDemo (deliberately vulnerable Java app)
-make sbom           # Extract SBOM from VeraDemo
-make scan           # Run vulnerability scan
-make assess         # Risk assessment with EPSS/KEV
+make sbom            # Extract SBOM from VeraDemo
+make scan            # Run vulnerability scan
+make detect          # alternative to make sbom -> make scan
+make identify        # Run vulnerable code identification
+make assess          # Risk assessment with EPSS/KEV
 ```
 
 **Note:** This scans [VeraDemo](https://github.com/veracode/verademo) - a deliberately vulnerable Java web application designed for security testing.
@@ -54,7 +58,8 @@ ls artifacts/assessments/
 
 **Key Output Columns:**
 
-- **Scan**: `id`, `package_name`, `package_version`, `cvss_v2_score`, `cvss_v3_score`, `epss_score`, `summary`
+- **Scan**: `cve_id`, `ghsa_id`, `package_name`, `package_version`, `fixed_version`, `cvss_v2_score`, `cvss_v3_score`, `epss_score`, `summary`, `description`, `cwe_id`
+- **Identify**: `cwe_id`, `path`, `start_line`, `start_col`, `start_offset`, `end_line`, `end_col`, `end_offset`, `extra_lines`, `extra_dataflow_trace_taint_source`, `extra_dataflow_trace_intermediate_vars`, `extra_dataflow_trace_taint_sink`
 - **Assessment**: `risk_score`, `risk_label`, `kev`, `rationale` (CRITICAL/HIGH/MEDIUM/LOW)
 
 ## Project Structure
@@ -63,15 +68,20 @@ ls artifacts/assessments/
 src/backend/
 ├─ workflow/
 │  ├─ vuln_detect/
-│  │  └─ vuln_scan.py        # SBOM extraction & vulnerability scanning
+│  │  └─ detector.py         # SBOM extraction & vulnerability scanning
+│  ├─ vuln_identify/
+│  │  └─ identifier.py       # vulnerable code path identification
 │  ├─ vuln_assess/
 │  │  └─ assessor.py         # Risk assessment & enrichment
 │  └─ vuln_remediate/
 │     └─ remediator.py       # Remediation recommendations
 ├─ schemas/
-│  └─ schemas.py             # Pydantic models
+│  └─ models.py              # Pydantic models
 ├─ utils/
-│  └─ compat.py              # Pydantic v1/v2 compatibility
+│  ├─ compat.py              # Pydantic v1/v2 compatibility
+|  ├─ cmd.py                 # running CLI commands
+|  ├─ df.py                  # pandas dataframe compatability
+|  └─ http.py                # making httpe requests
 └─ app/
    └─ main.py                # FastAPI application (optional)
 ```
@@ -83,6 +93,9 @@ src/backend/
 - **SBOM Generation**: Extract software bill of materials with Syft
 - **Vulnerability Scanning**: Find known vulnerabilities with Grype
 - **Normalized Output**: Structured parquet/CSV with CVSS, EPSS, references
+
+### 📌 **Vulnerable Code Identification**
+- **SAST Scanning**: Find vulnerable code patterns with Semgrep scan
 
 ### 📊 **Risk Assessment**
 
@@ -97,18 +110,23 @@ src/backend/
 - **Code Analysis**: Automated fix generation (planned)
 
 ## Library Usage
+Replace arguments with appropriate values.
 
 ```python
 from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom, perform_vuln_scan
+from src.backend.workflow.vuln_identify.vuln_code_identify import vuln_code_identify
 from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save
-from src.backend.schemas.models import VulnScan
+from src.backend.schemas.models import VulnCodeIdentification
 
 # Scan VeraDemo (deliberately vulnerable Java app)
 extract_sbom('verademo', 'sbom.spdx.json')
 df = perform_vuln_scan('sbom.spdx.json', 'scan.json', 'results.parquet')
 
+# Identify vulnerable code paths in unfixed open source dependencies
+df = vuln_code_identify(df, 'repos', 'scans', 'scans', 'results.parquet')
+
 # Risk assessment with external intelligence
-vulns = [VulnScan(**row) for row in df.to_dict('records')]
+vulns = [VulnCodeIdentification(**row) for row in df.to_dict('records')]
 assessed_df, paths = assess_vulns_df_and_save(vulns, 'assessments')
 
 print(f"Found {len(df)} vulnerabilities")

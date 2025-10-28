@@ -12,6 +12,9 @@ import numpy as np
 import os
 from src.backend.workflow.vuln_detect.provider import fetch_ghsa_details
 from src.backend.utils.cmd import run_cmd_and_parse_output
+from dotenv import load_dotenv
+
+load_dotenv()
 
 GITHUB_PERSONAL_ACCESS_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
 
