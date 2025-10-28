@@ -49,3 +49,10 @@ def save_assessment_frames(
         paths["summary_by_label_csv"] = str(lbl_csv)
 
     return paths
+
+def append_df(output_df, df_to_append):
+    if output_df is None:
+        output_df = df_to_append
+    else:
+        output_df = pd.concat([output_df, df_to_append], ignore_index=True)
+    return output_df

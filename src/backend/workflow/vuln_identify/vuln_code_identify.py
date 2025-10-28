@@ -9,6 +9,7 @@ import pandas as pd
 import os
 import json
 from src.backend.utils.cmd import run_cmd, run_cmd_and_parse_output
+from src.backend.utils.df import append_df
 from dotenv import load_dotenv
 import numpy as np
 
@@ -28,7 +29,7 @@ def vuln_code_identify(
     Run vulnerability code identification for unfixed vulnerabilities.
 
     Returns:
-        pd.DataFrame: DataFrame containing vulnerability code identification results.
+        pd.DataFrame: DataFrame containing vulnerability code identification results for unfixed vulnerabilities.
     """
     # skip if output_pd_path already exists and is non-empty
     if os.path.isfile(output_pd_path) and os.path.getsize(output_pd_path) > 0:
@@ -38,8 +39,18 @@ def vuln_code_identify(
     # identify unfixed vulnerabilities
     unfixed_vuln_df = vuln_scan_df[vuln_scan_df["fixed_version"].isnull()]
 
+    # initialize output_df to None
+    output_df = None
+    skipped_unfixed_vulns = []
+
     # iterate through unfixed vulnerabilities and run code identification
     for _, row in unfixed_vuln_df.iterrows():
+        # skip if source_code_location is empty but track the skipped rows so that they can be appended to output_df later
+        if not row["source_code_location"]:
+            skipped_unfixed_vulns.append(row)
+            print(f"Skipping vulnerability cve_id={row['cve_id']}, package_name={row['package_name']}, package_version={row['package_version']} as source_code_location is empty.")
+            continue
+        
         repo_url = row["source_code_location"] + ".git" # source_code_location is github url without .git
         # extract repo name from github url
         repo_name = repo_url.split("/")[-1].replace(".git", "")
@@ -97,8 +108,18 @@ def vuln_code_identify(
 
         # combine semgrep scan result dataframe with vuln_scan_df on matching cwe_id and filename in summary, description, or references
         cwe_id = row["cwe_id"]
-        result_df = result_df[result_df.apply(lambda r: (r['cwe_id'] ==  cwe_id) & any(r['filename'] in str(row[col]) for col in ['summary', 'description']), axis=1)]
-        output_df = pd.merge(vuln_scan_df, result_df, how="left", on="cwe_id")
+        result_df = result_df[result_df.apply(lambda r: (r['cwe_id'] ==  cwe_id) & any(r['filename'] in str(row[col]) for col in ['summary', 'description', 'references']), axis=1)]
+        if not result_df.empty:
+            print(f"matching rows found in semgrep scan for vulnerability cve_id={row['cve_id']}: \n {result_df}")
+        merged_df = pd.merge(row.to_frame().T, result_df, how='left', on='cwe_id')
+
+        # append merged_df to output_df
+        output_df = append_df(output_df, merged_df)
+
+    # append skipped_unfixed_vulns to output_df with NaN values for semgrep columns
+    if skipped_unfixed_vulns:
+        skipped_unfixed_vulns_df = pd.DataFrame(skipped_unfixed_vulns)
+        output_df = append_df(output_df, skipped_unfixed_vulns_df)
     # save output DataFrame to parquet
     output_df.to_parquet(output_pd_path)
 
@@ -150,6 +171,7 @@ def _extract_semgrep_df(semgrep_result: Dict[str, Any], output_path: str) -> pd.
     semgrep_extracted_df = semgrep_extracted_df.explode(['extra.metadata.cwe'])
     semgrep_extracted_df[['cwe_id', 'cwe_name']] = semgrep_extracted_df['extra.metadata.cwe'].str.split(': ', expand=True)
     semgrep_extracted_df.drop(columns=['cwe_name','extra.metadata.cwe'], inplace=True)
+    semgrep_extracted_df = semgrep_extracted_df.explode(['extra.metadata.vulnerability_class'])
     semgrep_extracted_df['filename'] = semgrep_extracted_df['path'].apply(lambda x: x.split('/')[-1].split('.')[0])
     # convert taint_source, intermediate_vars, taint_sink lists to strings
     semgrep_extracted_df['extra_dataflow_trace_taint_source'] = semgrep_extracted_df['extra.dataflow_trace.taint_source'].astype(str)
