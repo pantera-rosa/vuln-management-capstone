@@ -23,14 +23,14 @@ Repo logging-log4j2 already forked to organization Vuln-Guard. Skipping forking.
 Repo https://github.com/Vuln-Guard/logging-log4j2.git already cloned in artifacts/identify/repos/logging-log4j2. Skipping cloning.
 Semgrep scan output file artifacts/identify/semgrep_scans/logging-log4j2_semgrep_scan.json already exists and is non-empty. Skipping semgrep scan.
 finished semgrep scan.
-Saved semgrep extracted DataFrame to artifacts/identify/semgrep_scans/logging-log4j2_semgrep_scan_pd.parquet
+Semgrep scan pandas dataframe file artifacts/identify/semgrep_scans/logging-log4j2_semgrep_scan_pd.parquet already exists and is non-empty. Skipping converting semgrep scan to pandas dataframe.
 finished converting semgrep scan to pandas dataframe
 Skipping vulnerability cve_id=CVE-2019-17571, package_name=log4j, package_version=1.2.17 as source_code_location is empty.
 Repo logging-log4j1 already forked to organization Vuln-Guard. Skipping forking.
 Repo https://github.com/Vuln-Guard/logging-log4j1.git already cloned in artifacts/identify/repos/logging-log4j1. Skipping cloning.
 Semgrep scan output file artifacts/identify/semgrep_scans/logging-log4j1_semgrep_scan.json already exists and is non-empty. Skipping semgrep scan.
 finished semgrep scan.
-Saved semgrep extracted DataFrame to artifacts/identify/semgrep_scans/logging-log4j1_semgrep_scan_pd.parquet
+Semgrep scan pandas dataframe file artifacts/identify/semgrep_scans/logging-log4j1_semgrep_scan_pd.parquet already exists and is non-empty. Skipping converting semgrep scan to pandas dataframe.
 finished converting semgrep scan to pandas dataframe
 matching rows found in semgrep scan for vulnerability cve_id=CVE-2022-23305: 
                                                   path  ...  extra_dataflow_trace_taint_sink
@@ -50,7 +50,9 @@ finished converting semgrep scan to pandas dataframe
 2  CVE-2022-23302  ...                             NaN
 3  CVE-2019-17571  ...                             NaN
 4  CVE-2022-23307  ...                             NaN
+5  CVE-2023-26464  ...                             NaN
+6  CVE-2023-26464  ...                             NaN
 
-[5 rows x 51 columns]
+[7 rows x 51 columns]
 ```
 Locally, you should see the results written to the absolute path you specified above (e.g. `/mnt/c/Users/jtyeu/MIDS/DATASCI_210/vuln-management-capstone/docker_artifacts`)

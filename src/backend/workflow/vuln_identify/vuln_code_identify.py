@@ -29,7 +29,7 @@ def vuln_code_identify(
     Run vulnerability code identification for unfixed vulnerabilities.
 
     Returns:
-        pd.DataFrame: DataFrame containing vulnerability code identification results for unfixed vulnerabilities.
+        pd.DataFrame: DataFrame containing vulnerability code identification results.
     """
     # skip if output_pd_path already exists and is non-empty
     if os.path.isfile(output_pd_path) and os.path.getsize(output_pd_path) > 0:
@@ -38,6 +38,8 @@ def vuln_code_identify(
     
     # identify unfixed vulnerabilities
     unfixed_vuln_df = vuln_scan_df[vuln_scan_df["fixed_version"].isnull()]
+    # identify fixed vulnerabilities
+    fixed_vuln_df = vuln_scan_df[vuln_scan_df["fixed_version"].notnull()]
 
     # initialize output_df to None
     output_df = None
@@ -120,6 +122,9 @@ def vuln_code_identify(
     if skipped_unfixed_vulns:
         skipped_unfixed_vulns_df = pd.DataFrame(skipped_unfixed_vulns)
         output_df = append_df(output_df, skipped_unfixed_vulns_df)
+    # append fixed_vuln_df to output_df with NaN values for semgrep columns
+    if not fixed_vuln_df.empty:
+        output_df = append_df(output_df, fixed_vuln_df)
     # save output DataFrame to parquet
     output_df.to_parquet(output_pd_path)
 
