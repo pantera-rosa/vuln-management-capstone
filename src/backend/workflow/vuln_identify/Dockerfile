@@ -23,6 +23,8 @@ RUN poetry install --only main --no-root
 # copy over relevant files
 COPY src/backend/workflow/vuln_identify/vuln_code_identify.py ./src/backend/workflow/vuln_identify/
 COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/df.py ./src/backend/utils/
+COPY src/backend/utils/compat.py ./src/backend/utils/
 COPY src/backend/schemas/models.py ./src/backend/schemas/
 COPY src/backend/workflow/vuln_identify/identifier.py ./src/backend/workflow/vuln_identify/
 
@@ -55,6 +57,8 @@ RUN python3 -m pip install semgrep
 # copy over relevant files
 COPY src/backend/workflow/vuln_identify/vuln_code_identify.py ./src/backend/workflow/vuln_identify/
 COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/df.py ./src/backend/utils/
+COPY src/backend/utils/compat.py ./src/backend/utils/
 COPY src/backend/schemas/models.py ./src/backend/schemas/
 COPY src/backend/workflow/vuln_identify/identifier.py ./src/backend/workflow/vuln_identify/
 # entrypoint
