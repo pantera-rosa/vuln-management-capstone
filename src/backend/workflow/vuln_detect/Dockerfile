@@ -20,13 +20,20 @@ ENV POETRY_VIRTUALENVS_IN_PROJECT=1
 COPY poetry.lock pyproject.toml ./
 # install dependencies (exclude tests)
 RUN poetry install --only main --no-root
-# copy over relavent files
-COPY src/backend/workflow/vuln_detect/vuln_scan.py .
+# copy over relevant files
+COPY src/backend/workflow/vuln_detect/vuln_scan.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/workflow/vuln_detect/provider.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/http.py ./src/backend/utils/
+COPY src/backend/schemas/models.py ./src/backend/schemas/
+COPY src/backend/workflow/vuln_detect/detector.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/workflow/vuln_detect/lambda_function.py ./src/backend/workflow/vuln_detect/
+
 
 FROM python:3.13-slim AS run
-# install curl (needed for health check)
+# install run dependencies
 RUN apt-get update \
-    && apt-get install -y \
+    && apt-get install -y git \
          curl \
          build-essential \
          libffi-dev \
@@ -44,6 +51,13 @@ ENV PATH=/usr/local/bin:$PATH
 # add build environment executables to path
 ENV PATH=/vuln_detect/.venv/bin:$PATH
 # copy over relevant files
-COPY src/backend/workflow/vuln_detect/vuln_scan.py .
+COPY src/backend/workflow/vuln_detect/vuln_scan.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/workflow/vuln_detect/provider.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/http.py ./src/backend/utils/
+COPY src/backend/schemas/models.py ./src/backend/schemas/
+COPY src/backend/workflow/vuln_detect/detector.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/workflow/vuln_detect/lambda_function.py ./src/backend/workflow/vuln_detect/
+
 # entrypoint
-CMD [ "python3", "-m", "vuln_scan" ]
+ENTRYPOINT [ "python3", "-m", "src.backend.workflow.vuln_detect.detector"]

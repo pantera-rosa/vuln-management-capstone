@@ -3,29 +3,43 @@ from pydantic import BaseModel
 from typing import Dict
 
 
-# 👇 This is the detector output you provided
+# This is the detector output you provided
 class VulnScan(BaseModel):
-    id: str  # GHSA ID
-    related_id: str  # CVE ID
-    related_vuln_datasource: str
-    language: str
-    package_name: str
-    package_version: str
+    cve_id: Optional[str] = None  # CVE ID - can be None/NaN
+    ghsa_id: Optional[str] = None  # GHSA ID - can be None/NaN
+    severity: Optional[str] = None
+    related_vuln_datasource: Optional[str] = None  # Also making this optional since it could be missing
+    language: Optional[str] = None  # Optional since scan might not detect language
+    package_name: Optional[str] = None  # Optional for robustness
+    package_version: Optional[str] = None  # Optional for robustness
     fixed_version: Optional[str] = None
-    cvss_v2_score: Optional[float] = None
+    cvss_v2_score: Optional[str] = None
     cvss_v2_version: Optional[str] = None
-    cvss_v3_score: Optional[str] = None  # CVSS vector string
+    cvss_v2_base_score: Optional[float] = None
+    cvss_v2_exploitability_score: Optional[float] = None
+    cvss_v2_impact_score: Optional[float] = None
+    cvss_v3_score: Optional[str] = None 
     cvss_v3_version: Optional[str] = None
-    cvss_v4_vector: Optional[str] = None
+    cvss_v3_base_score: Optional[float] = None
+    cvss_v3_exploitability_score: Optional[float] = None
+    cvss_v3_impact_score: Optional[float] = None
+    cvss_v4_score: Optional[str] = None
     cvss_v4_version: Optional[str] = None
+    cvss_v4_base_score: Optional[float] = None
+    cvss_v4_exploitability_score: Optional[float] = None
+    cvss_v4_impact_score: Optional[float] = None
+    cvss_v4_vector: Optional[str] = None  # Added missing field from vuln_scan.py
     epss_score: Optional[float] = None
     epss_percentile: Optional[float] = None
-    summary: str
-    description: str
-    references: List[str]
+    summary: Optional[str] = None  # Making optional as it could be missing
+    description: Optional[str] = None  # Making optional as it could be missing
+    references: Optional[List[str]] = None  # Making optional
+    source_code_location: Optional[str] = None
+    cwe_id: Optional[str] = None
+    cwe_name: Optional[str] = None
 
 
-# 👇 Enriched result returned by assessment
+# Enriched result returned by assessment
 class VulnAssessment(VulnScan):
     kev: bool | None = None
     risk_score: float | None = None
@@ -33,7 +47,7 @@ class VulnAssessment(VulnScan):
     rationale: Optional[str] = None
 
 
-# 👇 Remediation items returned by the remediate step
+# Remediation items returned by the remediate step
 class Remediation(BaseModel):
     cve_id: str
     package_name: str

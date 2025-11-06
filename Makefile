@@ -13,22 +13,22 @@ clone-verademo:
 	fi
 
 sbom: clone-verademo
-	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('verademo', 'test/resources/scan/verademo_sbom.spdx.json')"
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('verademo', 'artifacts/detect/verademo_sbom.spdx.json')"
 
 scan:
-	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('test/resources/scan/verademo_sbom.spdx.json', output_scan_path='test/resources/scan/verademo_grype_scan.json', output_pd_path='test/resources/scan/verademo_grype_scan_df.parquet')"
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('artifacts/detect/verademo_sbom.spdx.json', output_scan_path='artifacts/detect/verademo_grype_scan.json', output_pd_path='artifacts/detect/verademo_grype_scan_df.parquet')"
 
 assess:
-	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnScan; import pandas as pd; import numpy as np; df=pd.read_parquet('test/resources/scan/verademo_grype_scan_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnScan(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'test/resources/assessments')"
+	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnScan; import pandas as pd; import numpy as np; df=pd.read_parquet('artifacts/detect/verademo_grype_scan_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnScan(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
 
 pipeline: sbom scan assess
 
 inspect:
-	poetry run python -c "import pandas as pd; df=pd.read_parquet('test/resources/scan/verademo_grype_scan_df.parquet'); print('shape=', df.shape); print('columns=', list(df.columns)); print(df.head(5).to_string(index=False))"
+	poetry run python -c "import pandas as pd; df=pd.read_parquet('artifacts/detect/verademo_grype_scan_df.parquet'); print('shape=', df.shape); print('columns=', list(df.columns)); print(df.head(5).to_string(index=False))"
 
 clean:
-	rm -rf test/resources/scan/*
-	rm -rf test/resources/assessments/*
+	rm -rf artifacts/*
+	rm -rf docker_artifacts/*
 	rm -rf verademo
 	rm -rf __pycache__ src/backend/__pycache__ src/backend/workflow/__pycache__
 
