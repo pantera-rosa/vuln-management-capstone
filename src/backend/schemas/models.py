@@ -71,9 +71,9 @@ class VulnAssessment(VulnCodeIdentification):
 class Remediation(BaseModel):
     cve_id: str
     package_name: str
-    current_version: str
+    package_version: str
     recommendation: str
-    references: List[str] = []
+    remediation_github_url: Optional[str] = None
 
 
 class AssessRequest(BaseModel):
