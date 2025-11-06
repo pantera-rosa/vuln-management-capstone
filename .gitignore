@@ -23,7 +23,8 @@ src/backend/workflow/vuln_assess/ingest_detect.py/
 =======
 docker_artifacts/
 >>>>>>> 3dd0761f22ad32d510f78011973aa438b7c0f1aa
-
+awscliv2.zip
+test/
 # Windows Zone.Identifier files
 *:Zone.Identifier
 *.txt:Zone.Identifier
