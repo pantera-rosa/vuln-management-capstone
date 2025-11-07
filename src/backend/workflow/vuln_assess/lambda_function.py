@@ -67,15 +67,34 @@ def lambda_handler(event, context):
     print(f"DataFrame columns: {list(df.columns)}")
     print(f"DataFrame shape: {df.shape}")
     
-    # Replace NaN with None for compatibility with Pydantic models
-    df = df.replace({np.nan: None})
+    # Convert DataFrame to list of dicts and clean up NaN values
+    records = df.to_dict(orient='records')
     
-    # Convert empty strings to None as well
-    df = df.replace({'': None})
+    # Clean up each record - replace NaN with None
+    cleaned_records = []
+    for record in records:
+        cleaned_record = {}
+        for key, value in record.items():
+            # Handle different types of values
+            if value is None:
+                cleaned_record[key] = None
+            elif isinstance(value, float) and np.isnan(value):
+                # Handle NaN floats
+                cleaned_record[key] = None
+            elif isinstance(value, str) and value == '':
+                # Handle empty strings
+                cleaned_record[key] = None
+            elif isinstance(value, (list, dict)):
+                # Keep lists and dicts as-is (like references)
+                cleaned_record[key] = value
+            else:
+                # Keep other values as-is
+                cleaned_record[key] = value
+        cleaned_records.append(cleaned_record)
 
     # Convert each record to a VulnScan object
     findings = []
-    for idx, record in enumerate(df.to_dict(orient='records')):
+    for idx, record in enumerate(cleaned_records):
         try:
             findings.append(VulnScan(**record))
         except Exception as e:

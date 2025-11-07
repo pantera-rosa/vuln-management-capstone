@@ -22,13 +22,8 @@ COPY poetry.lock pyproject.toml ./
 RUN poetry install --only main --no-root
 # Bring in only what assess needs (plus shared utils/schemas)
 # If you have more modules under vuln_assess/, copying the whole dir avoids missing imports.
-COPY src/backend/workflow/vuln_assess/assessor.py ./src/backend/workflow/vuln_assess/
-COPY src/backend/workflow/vuln_assess/lambda_assess.py ./src/backend/workflow/vuln_assess/
-COPY src/backend/workflow/vuln_assess/providers.py ./src/backend/workflow/vuln_assess/
-COPY src/backend/utils/df.py ./src/backend/utils/
-COPY src/backend/utils/http.py ./src/backend/utils/
-COPY src/backend/utils/compat.py ./src/backend/utils/
-COPY src/backend/schemas/models.py ./src/backend/schemas/
+COPY src/backend/workflow/ ./src/backend/workflow/
+
 # -----------------------------
 # Runtime stage
 # -----------------------------
@@ -45,12 +40,6 @@ WORKDIR /vuln_assess
 COPY --from=build /vuln_assess/.venv /vuln_assess/.venv
 ENV PATH=/vuln_assess/.venv/bin:$PATH
 # App code (mirror what was copied in the build stage)
-COPY src/backend/workflow/vuln_assess/assessor.py ./src/backend/workflow/vuln_assess/
-COPY src/backend/workflow/vuln_assess/lambda_assess.py ./src/backend/workflow/vuln_assess/
-COPY src/backend/workflow/vuln_assess/providers.py ./src/backend/workflow/vuln_assess/
-COPY src/backend/utils/df.py ./src/backend/utils/
-COPY src/backend/utils/http.py ./src/backend/utils/
-COPY src/backend/utils/compat.py ./src/backend/utils/
-COPY src/backend/schemas/models.py ./src/backend/schemas/
+COPY src/backend/workflow/ ./src/backend/workflow/
 # Entrypoint
 ENTRYPOINT [ "python3", "-m", "src.backend.workflow.vuln_assess.assessor"]
