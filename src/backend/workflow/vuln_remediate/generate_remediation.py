@@ -3,8 +3,7 @@ from src.backend.utils.cmd import run_cmd_and_parse_output
 from dotenv import load_dotenv
 from typing import Optional, Dict
 import os
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-import torch
+from src.backend.utils.llm import load_llm, invoke_llm_model
 
 load_dotenv()
 
@@ -12,7 +11,7 @@ GH_TOKEN = os.environ.get("GH_TOKEN", "")
 GITHUB_ORG_NAME = "Vuln-Guard"
 
 def generate_remediation(
-    vuln_assess_df: pd.DataFrame,
+    vuln_df: pd.DataFrame,
     model_id: str,
     output_pd_path: str,
     with_quantization: bool = False
@@ -30,7 +29,7 @@ def generate_remediation(
     output_vulns = []
 
     # iterate through vulnerabilities to generate remediation suggestions
-    for _, row in vuln_assess_df.iterrows():
+    for _, row in vuln_df.iterrows():
         if row["fixed_version"]:
             # if fixed, add recommendation to bump up version
             row['recommendation'] = f"Upgrade {row['package_name']} from existing vulnerable version {row['package_version']} to fixed version {row['fixed_version']}."
@@ -43,7 +42,7 @@ def generate_remediation(
                 raise ValueError("GH_TOKEN environment variable not set. Cannot authenticate with GitHub CLI. Please set GH_TOKEN to a valid GitHub personal access token with appropriate permissions.")
             
             # extract vulnerable code snippet if available
-            code_snippet_dict = _extract_code_snippet_from_file(
+            code_snippet_dict = _extract_code_snippet(
                 row['path'],
                 row['extra_lines'],
                 row['start_line'],
@@ -56,12 +55,14 @@ def generate_remediation(
 
             # generate remediation suggestion based on code snippet and other details
             if code_snippet_dict:
+                # load LLM model
+                model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
+                # extract code context
+                code_snippet_dict = _extract_code_context(model, tokenizer, row, code_snippet_dict)
                 # construct prompt for remediation generation
                 prompt = _construct_prompt(row, code_snippet_dict)
-                # load LLM model
-                model, tokenizer = _load_llm(model_id, with_quantization=with_quantization)
                 # invoke LLM with prompt to get remediation suggestion
-                remediation_suggestion = _invoke_llm_model(model, tokenizer, prompt)
+                remediation_suggestion = invoke_llm_model(model, tokenizer, prompt)
                 row['recommendation'] = remediation_suggestion
                 # create github issue with remediation suggestion
                 git_issue_output = run_cmd_and_parse_output(["gh", "issue", "create", "-R", f"{GITHUB_ORG_NAME}/{repo_name}", "-t", f"{row['cve_id']} Remediation: {row['summary']}", "-b", f"{remediation_suggestion}", "--json url", "--jq", ".url"])
@@ -81,7 +82,7 @@ def generate_remediation(
 
     return output_df
 
-def _extract_code_snippet_from_file(
+def _extract_code_snippet(
     path: str,
     extra_lines: Optional[str],
     start_line: Optional[str],
@@ -90,31 +91,104 @@ def _extract_code_snippet_from_file(
     end_line: Optional[str],
     end_col: Optional[str],
     end_offset: Optional[str]
-) -> Optional[Dict[str, str]]:
+) -> Dict[str, str]:
+    """
+    Extract vulnerable code snippet from cloned git fork file, based on path and position information provided.
+    Also store the full file contents.
+    """
     code_snippet_dict = {}
 
+    # try to extract code snippet from extra_lines
     if extra_lines:
         code_snippet_dict['code_snippet'] = extra_lines
 
-    # TODO: try to extract code snippet & context using start_offset and end_offset
-    try:
-        with open(path, 'rb') as f:  # Open in binary read mode
-            f.seek(start_offset)
-            snippet_bytes = f.read(end_offset - start_offset)
-            code_snippet_dict['code_snippet'] = snippet_bytes.decode('utf-8')  # Decode to string (adjust encoding if needed)
-            # set code_context as the sample of the file some bytes around the code_snippet
-            context_bytes = f.read(end_offset + 100 - start_offset - 100)
-            code_snippet_dict['code_context'] = context_bytes.decode('utf-8')
-    except FileNotFoundError:
-        print(f"Error: File not found at {path}. Could not extract code snippet info.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    # if code snippet could not be extracted, use start_offset and end_offset
+    if not code_snippet_dict['code_snippet'] and start_offset and end_offset:
+        try:
+            with open(path, 'rb') as f:  # Open in binary read mode
+                f.seek(start_offset)
+                snippet_bytes = f.read(end_offset - start_offset)
+                code_snippet_dict['code_snippet'] = snippet_bytes.decode('utf-8')  # Decode to string (adjust encoding if needed)
+        except FileNotFoundError:
+            print(f"Error: File not found at {path}. Could not extract code snippet info.")
+            return code_snippet_dict
+        except Exception as e:
+            print(f"An error occurred while extracting code snippet from start_offset and end_offset: {e}")
 
-    # TODO: if code snippet & context could not be extracted, use start_line, start_col, end_line, and end_col
-    pass
-    
+    # if code snippet could not be extracted, use start_line, start_col, end_line, and end_col
+    if not code_snippet_dict['code_snippet'] and start_line and start_col and end_line and end_col:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Ensure valid line range
+            if start_line < 1 or end_line > len(lines):
+                raise ValueError("Line numbers are out of range.")
+
+            # Convert to 0-based for Python indexing
+            start_line_idx = start_line - 1
+            end_line_idx = end_line - 1
+
+            # Single-line case
+            if start_line == end_line:
+                return lines[start_line_idx][start_col - 1:end_col]
+
+            # Multi-line case
+            extracted_lines = [lines[start_line_idx][start_col - 1:]]  # start line (partial)
+            extracted_lines.extend(lines[start_line_idx + 1:end_line_idx])  # full middle lines
+            extracted_lines.append(lines[end_line_idx][:end_col])  # end line (partial)
+
+            code_snippet_dict['code_snippet'] = ''.join(extracted_lines)
+        except Exception as e:
+            print(f"An error occurred while extracting code snippet from start_line, start_col, end_line, and end_col: {e}")
+
+    # store full file contents in dict
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            code_snippet_dict['file_contents'] = f.read()
+    except Exception as e:
+         print(f"An error occurred while extracting full file contents: {e}")
+        
+    return code_snippet_dict
+
+def _extract_code_context(
+    model, 
+    tokenizer, 
+    row: pd.Series,
+    code_snippet_dict: Dict[str, str]) -> Dict[str, str]:
+    """
+    Use LLM to extract code context corresponding to vulnerable code snippet and file contents.
+    """
+    if code_snippet_dict:
+        code_extract_prompt = _construct_extract_code_context_prompt(row, code_snippet_dict)
+        # invoke LLM to extract code context
+        code_snippet_dict['code_context'] = invoke_llm_model(model, tokenizer, code_extract_prompt)
+    return code_snippet_dict
+
+def _construct_extract_code_context_prompt(row: pd.Series, code_snippet_dict: Dict[str, str]) -> str:
+    """
+    Construct LLM prompt for code context extraction.
+    """
+    code_extract_prompt = f"""
+        Extract the {row['language']} code from the code file contents that is relevant to the provided code snippet.
+        Code file contents:
+        ```
+        {code_snippet_dict['file_contents']}
+        ```
+        code snippet:
+        ```
+        {code_snippet_dict['code_snippet']}
+        ```
+        Provide only the extracted {row['language']} code for the taint flow in the output. Do not just return the code snippet.
+        extracted code:
+        ```
+        """
+    return code_extract_prompt
 
 def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
+    """
+    Construct LLM prompt for code remediation.
+    """
     prompt = f"""
     Your task is to generate the code fix for the following vulnerable code snippet,
     given the provided supplementary information.
@@ -132,7 +206,7 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
     - Language: {row['language']}
     - Filename: {row['filename']}
     - Extra message: {row['extra_message']}
-    - Full vulnerable code file contents:
+    - Vulnerable code file contents:
     ```
     {code_snippet_info['code_context']}
     ```
@@ -145,46 +219,10 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
     {code_snippet_info['code_snippet']}
     ```
 
-    Then generate the code remediation. Use the 'Extra message', if provided, as a hint to generate the fix.
-    Provide a valid patch, only showing the {row['language']} code changes needed rather than the entire patched code.
-    Do not include additional text in your response.
+   Output only the generated code remediation. Use the 'Extra message' as a hint for what fix to make.
+   Provide only the valid patched code. Do not include additional text in your response.
 
-    Patch code changes:
+    Patched code:
     ```
     """
     return prompt
-
-def _load_llm(model_id: str, with_quantization : bool = False):
-    quantization_config = None
-    if with_quantization:
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-        )
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id, quantization_config=quantization_config, device_map="auto")
-    return model, tokenizer
-
-def _invoke_llm_model(model, tokenizer, prompt: str) -> str:
-    messages = [
-        {"role": "system", "content": "You are a cybersecurity engineer who is an expert at fixing vulnerable code."},
-        {"role": "user", "content": prompt}
-    ]
-
-    inputs = tokenizer.apply_chat_template(
-                        messages,
-                        add_generation_prompt=True,
-                        tokenize=True,
-                        return_dict=True,
-                        return_tensors="pt",
-                    ).to(model.device)
-
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=8192 # Increased the maximum number of new tokens
-        )
-    info = tokenizer.decode(outputs[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
-    return info
