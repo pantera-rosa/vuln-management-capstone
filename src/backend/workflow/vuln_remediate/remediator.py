@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run vulnerability code remediation on vulnerability scan/identification/assessment results.")
     parser.add_argument("--vuln_results_path", type=str, required=True, help="Path to the Parquet file containing vulnerability results from previous stages of the workflow.")
     parser.add_argument("--dep_repos_root_dir_path", type=str, required=True, help="Path to the root directory where the unfixed vulnerable OSS dependency repositories are cloned.")
-    parser.add_argument("--model_id", type=str, required=True, help="Model id for LLM to use in remediation generation (e.g. '01-ai/Yi-Coder-1.5B-Chat').")
+    parser.add_argument("--model_id", type=str, required=True, help="Model id for LLM to use in remediation generation (e.g. 01-ai/Yi-Coder-1.5B-Chat).")
     parser.add_argument("--with_quantization", type=bool, default=False, help=" (optional) If set, the specified LLM is loaded with 4-bit quantization.")
     parser.add_argument("--output_pd_path", type=str, required=True, help="Path to save the final vulnerability code remediation results in Parquet format.")
     parser.add_argument("--display", type=bool, default=False, help=" (optional) If set, display the final vulnerability code remediation dataframe to stdout after processing.")

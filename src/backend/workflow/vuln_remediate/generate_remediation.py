@@ -158,7 +158,7 @@ def _extract_code_snippet(
             extracted_lines.append(lines[end_line_idx][:end_col])  # end line (partial)
 
             code_snippet_dict['code_snippet'] = ''.join(extracted_lines)
-            print(f"successfully extracted code snippet using start_line, start_col, end_line, and end_offset. Code snippet: {code_snippet_dict['code_snippet']}")
+            print(f"successfully extracted code snippet using start_line, start_col, end_line, and end_offset.")
         except Exception as e:
             print(f"An error occurred while extracting code snippet from start_line, start_col, end_line, and end_col: {e}")
 
