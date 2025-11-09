@@ -1,8 +1,10 @@
+from __future__ import annotations
 import pandas as pd
 from src.backend.utils.cmd import run_cmd_and_parse_output
 from dotenv import load_dotenv
 from typing import Optional, Dict
 import os
+from pathlib import Path
 from src.backend.utils.llm import load_llm, invoke_llm_model
 
 load_dotenv()
@@ -14,6 +16,7 @@ def generate_remediation(
     vuln_df: pd.DataFrame,
     model_id: str,
     output_pd_path: str,
+    dep_repos_root_dir_path: str,
     with_quantization: bool = False
 ) -> pd.DataFrame:
     """
@@ -26,6 +29,11 @@ def generate_remediation(
     Returns:
         pd.DataFrame: DataFrame with remediation suggestions added.
     """
+    # skip if output_pd_path already exists and is non-empty
+    if os.path.isfile(output_pd_path) and os.path.getsize(output_pd_path) > 0:
+        print(f"Vulnerability code identification dataframe file {output_pd_path} already exists and is non-empty. Skipping vulnerability code identification.")
+        return pd.read_parquet(output_pd_path)
+
     output_vulns = []
 
     # iterate through vulnerabilities to generate remediation suggestions
@@ -33,7 +41,7 @@ def generate_remediation(
         if row["fixed_version"]:
             # if fixed, add recommendation to bump up version
             row['recommendation'] = f"Upgrade {row['package_name']} from existing vulnerable version {row['package_version']} to fixed version {row['fixed_version']}."
-        elif row["source_code_location"]:
+        elif row["source_code_location"] and row['path']:
             # extract repo name from github url
             repo_name = row["source_code_location"].split("/")[-1]
 
@@ -41,9 +49,17 @@ def generate_remediation(
             if not GH_TOKEN:
                 raise ValueError("GH_TOKEN environment variable not set. Cannot authenticate with GitHub CLI. Please set GH_TOKEN to a valid GitHub personal access token with appropriate permissions.")
             
+            # rewrite path to have root directory dep_repos_root_dir_path
+            file_path = Path(row['path'])
+            file_path_parts = file_path.parts
+            start_index = file_path_parts.index(repo_name)
+            # Reconstruct the path from the repo folder onwards
+            portion = Path(*file_path_parts[start_index:])
+            path = os.path.join(dep_repos_root_dir_path, str(portion))
+
             # extract vulnerable code snippet if available
             code_snippet_dict = _extract_code_snippet(
-                row['path'],
+                path,
                 row['extra_lines'],
                 row['start_line'],
                 row['start_col'],
@@ -54,7 +70,7 @@ def generate_remediation(
             )
 
             # generate remediation suggestion based on code snippet and other details
-            if code_snippet_dict:
+            if code_snippet_dict['code_snippet'] and code_snippet_dict['file_contents']:
                 # load LLM model
                 model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
                 # extract code context
@@ -70,7 +86,7 @@ def generate_remediation(
             else:
                 print(f"Skipping vuln remediation for cve_id={row['cve_id']}, package_name={row['package_name']}, package_version={row['package_version']} as code snippet info is unavailable.")
         else:
-            print(f"Skipping vuln remediation for cve_id={row['cve_id']}, package_name={row['package_name']}, package_version={row['package_version']} as source_code_location is empty.")
+            print(f"Skipping vuln remediation for cve_id={row['cve_id']}, package_name={row['package_name']}, package_version={row['package_version']} as source_code_location and/or path is empty.")
 
         # append resulting row to output
         output_vulns.append(row)
@@ -96,11 +112,13 @@ def _extract_code_snippet(
     Extract vulnerable code snippet from cloned git fork file, based on path and position information provided.
     Also store the full file contents.
     """
-    code_snippet_dict = {}
+    code_snippet_dict = {'code_snippet': None, 'file_contents': None}
+    print("Starting code snippet extraction...")
 
     # try to extract code snippet from extra_lines
     if extra_lines:
         code_snippet_dict['code_snippet'] = extra_lines
+        print(f"successfully extracted code snippet using extra_lines. Code snippet: {code_snippet_dict['code_snippet']}")
 
     # if code snippet could not be extracted, use start_offset and end_offset
     if not code_snippet_dict['code_snippet'] and start_offset and end_offset:
@@ -109,6 +127,7 @@ def _extract_code_snippet(
                 f.seek(start_offset)
                 snippet_bytes = f.read(end_offset - start_offset)
                 code_snippet_dict['code_snippet'] = snippet_bytes.decode('utf-8')  # Decode to string (adjust encoding if needed)
+                print(f"successfully extracted code snippet using start_offset and end_offset. Code snippet: {code_snippet_dict['code_snippet']}")
         except FileNotFoundError:
             print(f"Error: File not found at {path}. Could not extract code snippet info.")
             return code_snippet_dict
@@ -139,6 +158,7 @@ def _extract_code_snippet(
             extracted_lines.append(lines[end_line_idx][:end_col])  # end line (partial)
 
             code_snippet_dict['code_snippet'] = ''.join(extracted_lines)
+            print(f"successfully extracted code snippet using start_line, start_col, end_line, and end_offset. Code snippet: {code_snippet_dict['code_snippet']}")
         except Exception as e:
             print(f"An error occurred while extracting code snippet from start_line, start_col, end_line, and end_col: {e}")
 
@@ -146,6 +166,7 @@ def _extract_code_snippet(
     try:
         with open(path, 'r', encoding='utf-8') as f:
             code_snippet_dict['file_contents'] = f.read()
+            print(f"successfully extracted code file contents.")
     except Exception as e:
          print(f"An error occurred while extracting full file contents: {e}")
         
