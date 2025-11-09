@@ -1,17 +1,11 @@
-from __future__ import annotations
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable
 from datetime import datetime
 import importlib.util
 import pandas as pd
-from src.backend.utils.compat import model_to_dict
-
 
 def findings_to_df(items: Iterable[Any]) -> pd.DataFrame:
-    rows: List[Dict[str, Any]] = []
-    for it in items:
-        rows.append(model_to_dict(it))
-    return pd.DataFrame(rows)
+    return pd.DataFrame([item.model_dump() for item in items])
 
 
 def save_assessment_frames(
