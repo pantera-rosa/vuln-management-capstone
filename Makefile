@@ -19,15 +19,18 @@ scan:
 	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('artifacts/detect/verademo_sbom.spdx.json', output_scan_path='artifacts/detect/verademo_grype_scan.json', output_pd_path='artifacts/detect/verademo_grype_scan_df.parquet')"
 
 detect:
-	poetry run python -c "from src.backend.workflow.vuln_detect.detector import detect_vulns; detect_vulns('https://github.com/veracode/verademo.git', 'artifacts/detect/repos/verademo', 'artifacts/detect/verademo_sbom.spdx.json', 'artifacts/detect/verademo_grype_scan.json', 'artifacts/detect/verademo_grype_scan_df.parquet')"
+	poetry run python -m src.backend.workflow.vuln_detect.detector --repo_url=https://github.com/veracode/verademo.git --dir_path=artifacts/detect/repos/verademo --sbom_path=artifacts/detect/verademo_sbom.spdx.json --output_raw_scan_path=artifacts/detect/verademo_grype_scan.json --output_final_scan_path=artifacts/detect/verademo_grype_scan_df.parquet --dsiplay=True
 
 identify:
-	poetry run python -c "from src.backend.workflow.vuln_identify.identifier import identify_vulns; from src.backend.schemas.models import VulnScan; import pandas as pd; import numpy as np; df=pd.read_parquet('artifacts/detect/verademo_grype_scan_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnScan(**row) for row in df.to_dict('records')]; identify_vulns(vulns, 'artifacts/identify/repos', 'artifacts/identify/semgrep_scans', 'artifacts/identify/semgrep_scans', 'artifacts/identify/semgrep_results_df.parquet')"
+	poetry run python -m src.backend.workflow.vuln_identify.identifier --vuln_scan_results_path=artifacts/detect/verademo_grype_scan_df.parquet --dep_repos_root_dir_path=artifacts/identify/repos --output_raw_scans_dir_path=artifacts/identify/semgrep_scans --output_final_scans_dir_path=artifacts/identify/semgrep_scans --output_pd_path=artifacts/identify/semgrep_results_df.parquet --display=True
 
 assess:
 	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnCodeIdentification; import pandas as pd; import numpy as np; df=pd.read_parquet('artifacts/identify/semgrep_results_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnCodeIdentification(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
 
-pipeline: detect identify assess
+remediate:
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=artifacts/assessments/assessment_20251109-032128.parquet --dep_repos_root_dir_path=artifacts/identify/repos  --model_id=01-ai/Yi-Coder-1.5B-Chat --with_quantization=True --output_pd_path=artifacts/remediate/remediate_pd.parquet --display=True
+
+pipeline: detect identify assess remediate
 
 inspect:
 	poetry run python -c "import pandas as pd; df=pd.read_parquet('artifacts/detect/verademo_grype_scan_df.parquet'); print('detect results shape=', df.shape); print('detect results columns=', list(df.columns)); print(df.head(5).to_string(index=False)); df=pd.read_parquet('artifacts/identify/semgrep_results_df.parquet'); print('identify results shape=', df.shape); print('identify results columns=', list(df.columns)); print(df.head(5).to_string(index=False))"
