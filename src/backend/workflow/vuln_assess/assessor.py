@@ -4,7 +4,7 @@ import os, json, math
 import pandas as pd
 import numpy as np
 from src.backend.utils.compat import model_to_dict
-from src.backend.schemas.models import VulnScan, VulnAssessment
+from src.backend.schemas.models import VulnCodeIdentification, VulnAssessment
 from src.backend.utils.df import findings_to_df, save_assessment_frames
 from src.backend.workflow.vuln_assess.providers import kev_contains, fetch_epss
 
@@ -13,31 +13,15 @@ __all__ = ["assess_vulns", "assess_vulns_df", "assess_vulns_df_and_save"]
 # ---- helpers ---------------------------------------------------------------
 
 
-def _first_num(*vals) -> Optional[float]:
-    for x in vals:
-        if x is None:
-            continue
-        try:
-            xf = float(x)
-            if not math.isnan(xf):
-                return xf
-        except Exception:
-            continue
+def _pick_cvss(v: VulnCodeIdentification) -> Optional[float]:
+    # Try cvss_v2_base_score first, then cvss_v4_base_score, then cvss_v3_base_score
+    if v.cvss_v2_base_score is not None:
+        return float(v.cvss_v2_base_score)
+    if v.cvss_v4_base_score is not None:
+        return float(v.cvss_v4_base_score)
+    if v.cvss_v3_base_score is not None:
+        return float(v.cvss_v3_base_score)
     return None
-
-def _pick_cvss(v: VulnScan) -> Optional[float]:
-    """
-    Prefer the newest numeric base score available: v4 -> v3 -> v2.
-    Fall back to legacy *_score fields if they are numeric.
-    """
-    return _first_num(
-        getattr(v, "cvss_v4_base_score", None),
-        getattr(v, "cvss_v3_base_score", None),
-        getattr(v, "cvss_v2_base_score", None),
-        getattr(v, "cvss_v4_score", None),
-        getattr(v, "cvss_v3_score", None),
-        getattr(v, "cvss_v2_score", None),
-    )
 
 
 def _normalize_cvss(score: Optional[float]) -> float:
@@ -60,19 +44,14 @@ def _label_for_score(score: float) -> str:
 # ---- core API --------------------------------------------------------------
 
 
-def assess_vulns(findings: List[VulnScan]) -> List[VulnAssessment]:
+def assess_vulns(findings: List[VulnCodeIdentification]) -> List[VulnAssessment]:
     """
     Reachability-first
     risk = 0.5*EPSS% + 0.5*CVSS_base% + 15 if reachable
     """
     results: List[VulnAssessment] = []
     for f in findings:
-        cvss = _first_num(
-            getattr(f, "cvss_v4_base_score", None),
-            getattr(f, "cvss_v3_base_score", None),
-            getattr(f, "cvss_v2_base_score", None),
-            _pick_cvss(f)
-        )
+        cvss = _pick_cvss(f)
         cvss_norm = _normalize_cvss(cvss)
 
         epss = getattr(f, "epss_score", None)
@@ -108,7 +87,7 @@ def assess_vulns(findings: List[VulnScan]) -> List[VulnAssessment]:
 # ---- DataFrame helpers -----------------------------------------------------
 
 
-def assess_vulns_df(findings: List[VulnScan]) -> pd.DataFrame:
+def assess_vulns_df(findings: List[VulnCodeIdentification]) -> pd.DataFrame:
     """
     Run enrichment and return a tidy pandas DataFrame.
     """
@@ -153,7 +132,7 @@ def assess_vulns_df(findings: List[VulnScan]) -> pd.DataFrame:
 
 
 def assess_vulns_df_and_save(
-    findings: List[VulnScan],
+    findings: List[VulnCodeIdentification],
     out_dir: str = "artifacts/assessments",
 ) -> Tuple[pd.DataFrame, dict]:
     """

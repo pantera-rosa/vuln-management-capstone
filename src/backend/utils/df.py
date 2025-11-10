@@ -83,3 +83,9 @@ def save_and_upload_assessment_frames(
         s3.upload_file(p, bucket, s3_key)  # boto3 S3 client upload_file usage
         s3_uris[key] = f"s3://{bucket}/{s3_key}"
     return s3_uris
+def append_df(output_df, df_to_append):
+    if output_df is None:
+        output_df = df_to_append
+    else:
+        output_df = pd.concat([output_df, df_to_append], ignore_index=True)
+    return output_df

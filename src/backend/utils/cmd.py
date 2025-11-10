@@ -43,12 +43,12 @@ def run_cmd_and_parse_output(cmd: list[str], return_dict: bool = True, output_pa
 def run_cmd(cmd):
     proc = None
     try:
-     proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
     except FileNotFoundError as e:
-     raise FileNotFoundError(f"{cmd[0]} executable not found in PATH. Please install {cmd[0]} and ensure it's available.") from e
+        raise FileNotFoundError(f"{cmd[0]} executable not found in PATH. Please install {cmd[0]} and ensure it's available.") from e
     except subprocess.CalledProcessError as e:
-     raise e
+        raise e
     except Exception as e:
-     raise RuntimeError(f"failed to run {cmd[0]}") from e
+        raise RuntimeError(f"failed to run {cmd[0]}") from e
     return proc
 

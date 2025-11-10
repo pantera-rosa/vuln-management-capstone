@@ -12,6 +12,9 @@ import numpy as np
 import os
 from src.backend.workflow.vuln_detect.provider import fetch_ghsa_details
 from src.backend.utils.cmd import run_cmd_and_parse_output
+from dotenv import load_dotenv
+
+load_dotenv()
 
 GITHUB_PERSONAL_ACCESS_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
 
@@ -109,7 +112,7 @@ def _extract_grype_df(grype_scan_result):
 		"cvss_v3_base_score": grype_extracted_df['cvss_v3_base_score'] if 'cvss_v3_base_score' in grype_extracted_df.columns else np.nan,
 		"cvss_v3_exploitability_score": grype_extracted_df['cvss_v3_exploitability_score'] if 'cvss_v3_exploitability_score' in grype_extracted_df.columns else np.nan,
 		"cvss_v3_impact_score": grype_extracted_df['cvss_v3_impact_score'] if 'cvss_v3_impact_score' in grype_extracted_df.columns else np.nan,
-		"cvss_v4_vector": grype_extracted_df['cvss_v4_vector'] if 'cvss_v4_vector' in grype_extracted_df.columns else np.nan,
+		"cvss_v4_score": grype_extracted_df['cvss_v4_vector'] if 'cvss_v4_vector' in grype_extracted_df.columns else np.nan,
 		"cvss_v4_version": grype_extracted_df['cvss_v4_version'] if 'cvss_v4_version' in grype_extracted_df.columns else np.nan,
 		"cvss_v4_base_score": grype_extracted_df['cvss_v4_base_score'] if 'cvss_v4_base_score' in grype_extracted_df.columns else np.nan,
 		"cvss_v4_exploitability_score": grype_extracted_df['cvss_v4_exploitability_score'] if 'cvss_v4_exploitability_score' in grype_extracted_df.columns else np.nan,
@@ -188,21 +191,21 @@ def _extract_grype_cvss_df(df: pd.DataFrame) -> pd.DataFrame:
 	num_rows = len(df)
 	nan_array = [np.nan] * num_rows
 	cvss_dict = {
-		"cvss_v2_vector": nan_array,
-		"cvss_v2_version": nan_array,
-		"cvss_v2_base_score": nan_array,
-		"cvss_v2_exploitability_score": nan_array,
-		"cvss_v2_impact_score": nan_array,
-		"cvss_v3_vector": nan_array,
-		"cvss_v3_version": nan_array,
-		"cvss_v3_base_score": nan_array,
-		"cvss_v3_exploitability_score": nan_array,
-		"cvss_v3_impact_score": nan_array,
-		"cvss_v4_vector": nan_array,
-		"cvss_v4_version": nan_array,
-		"cvss_v4_base_score": nan_array,
-		"cvss_v4_exploitability_score": nan_array,
-		"cvss_v4_impact_score": nan_array
+		"cvss_v2_vector": nan_array.copy(),
+		"cvss_v2_version": nan_array.copy(),
+		"cvss_v2_base_score": nan_array.copy(),
+		"cvss_v2_exploitability_score": nan_array.copy(),
+		"cvss_v2_impact_score": nan_array.copy(),
+		"cvss_v3_vector": nan_array.copy(),
+		"cvss_v3_version": nan_array.copy(),
+		"cvss_v3_base_score": nan_array.copy(),
+		"cvss_v3_exploitability_score": nan_array.copy(),
+		"cvss_v3_impact_score": nan_array.copy(),
+		"cvss_v4_vector": nan_array.copy(),
+		"cvss_v4_version": nan_array.copy(),
+		"cvss_v4_base_score": nan_array.copy(),
+		"cvss_v4_exploitability_score": nan_array.copy(),
+		"cvss_v4_impact_score": nan_array.copy()
 	}
 
 	if cvss_metrics is not None:
