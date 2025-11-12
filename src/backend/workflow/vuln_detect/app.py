@@ -7,9 +7,9 @@ import boto3
 from vuln_scan import extract_sbom, perform_vuln_scan
 
 S3_BUCKET = os.getenv("S3_BUCKET")
-OUTPUT_PREFIX = os.getenv("OUTPUT_PREFIX", "verademo")
+OUTPUT_PREFIX = os.getenv("OUTPUT_PREFIX", "vuln-detect-results")
 REPO_ZIP_URL = os.getenv("REPO_ZIP_URL",
-    "https://github.com/veracode/verademo/archive/refs/heads/master.zip")
+    "https://github.com/apache/logging-log4j1/archive/refs/heads/main.zip")
 
 # Grype defaults for Lambda (/tmp is the only writable disk)
 os.environ.setdefault("XDG_CACHE_HOME", "/tmp")
@@ -68,11 +68,11 @@ def handler(event, context):
         zf.extractall(work)
     repo_dir = next(p for p in work.iterdir() if p.is_dir())
 
-    sbom_path = str(outdir / "verademo_sbom.cyclonedx.json")
+    sbom_path = str(outdir / "log4j_sbom.cyclonedx.json")
     extract_sbom(str(repo_dir), sbom_path)  # Syft: cyclonedx-json
 
-    scan_json = str(outdir / "verademo_grype_scan.json")
-    scan_parq = str(outdir / "verademo_grype_scan.parquet")
+    scan_json = str(outdir / "log4j_grype_scan.json")
+    scan_parq = str(outdir / "log4j_grype_scan.parquet")
     perform_vuln_scan(sbom_path, output_scan_path=scan_json, output_pd_path=scan_parq)
 
     # ---- Upload to S3 with encryption (KMS if provided) ----
@@ -94,4 +94,4 @@ def handler(event, context):
             s3.upload_file(p, S3_BUCKET, key)
 
     return {"bucket": S3_BUCKET, "prefix": key_prefix,
-            "files": ["verademo_sbom.cyclonedx.json","verademo_grype_scan.json","verademo_grype_scan.parquet"]}
+            "files": ["log4j_sbom.cyclonedx.json","log4j_grype_scan.json","log4j_grype_scan.parquet"]}

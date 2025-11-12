@@ -4,25 +4,10 @@
 .env
 .venv/
 verademo/
+log4j/
 artifacts/
 test/resources/
-<<<<<<< HEAD
-dvpwa/
-src/backend/__pycache__/
-src/backend/.venv/
-src/backend/app/__pycache__/
-src/backend/app/api/__pycache__/
-src/backend/app/api/v1/__pycache__/
-src/backend/schemas/__pycache__/
-src/backend/utils/__pycache__/
-src/backend/workflow/__pycache__/
-src/backend/workflow/vuln_assess/__pycache__/
-src/backend/workflow/vuln_detect/__pycache__/
-src/backend/workflow/vuln_remediate/__pycache__/
-src/backend/workflow/vuln_assess/ingest_detect.py/
-=======
 docker_artifacts/
->>>>>>> 3dd0761f22ad32d510f78011973aa438b7c0f1aa
 awscliv2.zip
 test/
 requirements.txt

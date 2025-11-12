@@ -1,5 +1,4 @@
 from typing import List
-from pydantic import TypeAdapter
 from src.backend.schemas.models import VulnScan, VulnCodeIdentification
 import pandas as pd
 from src.backend.workflow.vuln_identify.vuln_code_identify import vuln_code_identify
@@ -25,7 +24,7 @@ def identify_vulns(
         vuln_scan_df=vuln_scan_df,
         dep_repos_root_dir_path=dep_repos_root_dir_path,
         output_scans_dir_path=output_scans_dir_path,
-        output_scans_pd_dir_path=output_scans_pd_dir_path,
+        output_scans_pd_dir_path=output_scans_pd_dir_path, 
         output_pd_path=output_pd_path
     )
 

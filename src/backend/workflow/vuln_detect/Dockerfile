@@ -26,6 +26,14 @@ COPY poetry.lock pyproject.toml ./
 
 # install dependencies (exclude tests)
 RUN poetry install --only main --no-root
+# copy over relevant files
+COPY src/backend/workflow/vuln_detect/vuln_scan.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/workflow/vuln_detect/provider.py ./src/backend/workflow/vuln_detect/
+COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/df.py ./src/backend/utils/
+COPY src/backend/utils/http.py ./src/backend/utils/
+COPY src/backend/schemas/models.py ./src/backend/schemas/
+COPY src/backend/workflow/vuln_detect/detector.py ./src/backend/workflow/vuln_detect/
 
 
 # Runtime stage - Lambda base image
@@ -65,6 +73,7 @@ COPY src/backend/workflow/vuln_detect/vuln_scan.py ./src/backend/workflow/vuln_d
 COPY src/backend/workflow/vuln_detect/provider.py ./src/backend/workflow/vuln_detect/
 COPY src/backend/workflow/vuln_detect/detector.py ./src/backend/workflow/vuln_detect/
 COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/df.py ./src/backend/utils/
 COPY src/backend/utils/http.py ./src/backend/utils/
 COPY src/backend/schemas/models.py ./src/backend/schemas/
 

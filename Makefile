@@ -3,26 +3,26 @@
 install:
 	poetry install
 
-clone-verademo:
-	@if [ ! -d "verademo" ]; then \
-		echo "Cloning VeraDemo repository..."; \
-		git clone https://github.com/veracode/verademo.git verademo; \
+clone-log4j:
+	@if [ ! -d "log4j" ]; then \
+		echo "Cloning log4j repository..."; \
+		git clone https://github.com/apache/logging-log4j1.git log4j; \
 	else \
-		echo "VeraDemo already exists, updating..."; \
-		cd verademo && git pull; \
+		echo "Log4j already exists, updating..."; \
+		cd log4j && git pull; \
 	fi
 
-sbom: clone-verademo
-	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('verademo', 'artifacts/detect/verademo_sbom.spdx.json')"
+sbom: clone-log4j
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom; extract_sbom('log4j', 'artifacts/detect/log4j_sbom.spdx.json')"
 
 scan:
-	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('artifacts/detect/verademo_sbom.spdx.json', output_scan_path='artifacts/detect/verademo_grype_scan.json', output_pd_path='artifacts/detect/verademo_grype_scan_df.parquet')"
+	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('artifacts/detect/log4j_sbom.spdx.json', output_scan_path='artifacts/detect/log4j_grype_scan.json', output_pd_path='artifacts/detect/log4j_grype_scan_df.parquet')"
 
 detect:
-	poetry run python -m src.backend.workflow.vuln_detect.detector --repo_url=https://github.com/veracode/verademo.git --dir_path=artifacts/detect/repos/verademo --sbom_path=artifacts/detect/verademo_sbom.spdx.json --output_raw_scan_path=artifacts/detect/verademo_grype_scan.json --output_final_scan_path=artifacts/detect/verademo_grype_scan_df.parquet --dsiplay=True
+	poetry run python -m src.backend.workflow.vuln_detect.detector --repo_url=https://github.com/apache/logging-log4j1.git --dir_path=artifacts/detect/repos/log4j --sbom_path=artifacts/detect/log4j_sbom.spdx.json --output_raw_scan_path=artifacts/detect/log4j_grype_scan.json --output_final_scan_path=artifacts/detect/log4j_grype_scan_df.parquet --display=True
 
 identify:
-	poetry run python -m src.backend.workflow.vuln_identify.identifier --vuln_scan_results_path=artifacts/detect/verademo_grype_scan_df.parquet --dep_repos_root_dir_path=artifacts/identify/repos --output_raw_scans_dir_path=artifacts/identify/semgrep_scans --output_final_scans_dir_path=artifacts/identify/semgrep_scans --output_pd_path=artifacts/identify/semgrep_results_df.parquet --display=True
+	poetry run python -m src.backend.workflow.vuln_identify.identifier --vuln_scan_results_path=artifacts/detect/log4j_grype_scan_df.parquet --dep_repos_root_dir_path=artifacts/identify/repos --output_raw_scans_dir_path=artifacts/identify/semgrep_scans --output_final_scans_dir_path=artifacts/identify/semgrep_scans --output_pd_path=artifacts/identify/semgrep_results_df.parquet --display=True
 
 assess:
 	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnCodeIdentification; import pandas as pd; import numpy as np; df=pd.read_parquet('artifacts/identify/semgrep_results_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnCodeIdentification(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
@@ -33,12 +33,12 @@ remediate:
 pipeline: detect identify assess remediate
 
 inspect:
-	poetry run python -c "import pandas as pd; df=pd.read_parquet('artifacts/detect/verademo_grype_scan_df.parquet'); print('detect results shape=', df.shape); print('detect results columns=', list(df.columns)); print(df.head(5).to_string(index=False)); df=pd.read_parquet('artifacts/identify/semgrep_results_df.parquet'); print('identify results shape=', df.shape); print('identify results columns=', list(df.columns)); print(df.head(5).to_string(index=False))"
+	poetry run python -c "import pandas as pd; df=pd.read_parquet('artifacts/detect/log4j_grype_scan_df.parquet'); print('detect results shape=', df.shape); print('detect results columns=', list(df.columns)); print(df.head(5).to_string(index=False)); df=pd.read_parquet('artifacts/identify/semgrep_results_df.parquet'); print('identify results shape=', df.shape); print('identify results columns=', list(df.columns)); print(df.head(5).to_string(index=False))"
 
 clean:
 	rm -rf artifacts/*
 	rm -rf docker_artifacts/*
-	rm -rf verademo
+	rm -rf log4j
 	rm -rf __pycache__ src/backend/__pycache__ src/backend/workflow/__pycache__
 
 lint:

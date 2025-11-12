@@ -27,7 +27,7 @@ def run_cmd_and_parse_output(cmd: list[str], return_dict: bool = True, output_pa
 			output = json.loads(output)
 		except json.JSONDecodeError as e:
 			# If output isn't JSON, fail.
-			raise json.JSONDecodeError(f"{cmd[0]} output is not valid JSON", output, 0) from e
+			raise json.JSONDecodeError(f"{cmd} output is not valid JSON", output, 0) from e
 		
 	# write to output_path if provided
 	if output_path:
@@ -40,15 +40,16 @@ def run_cmd_and_parse_output(cmd: list[str], return_dict: bool = True, output_pa
 				f.write(output)
 	return output
 
-def run_cmd(cmd):
+def run_cmd(cmd: list[str]):
     proc = None
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
     except FileNotFoundError as e:
         raise FileNotFoundError(f"{cmd[0]} executable not found in PATH. Please install {cmd[0]} and ensure it's available.") from e
     except subprocess.CalledProcessError as e:
+        print(f"failed to run {cmd} due to error: {e.stderr}")
         raise e
     except Exception as e:
-        raise RuntimeError(f"failed to run {cmd[0]}") from e
+        raise RuntimeError(f"failed to run {cmd} due to error: {e.stderr}") from e
     return proc
 
