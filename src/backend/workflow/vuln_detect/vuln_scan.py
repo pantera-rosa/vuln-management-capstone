@@ -12,6 +12,7 @@ import numpy as np
 import os
 from src.backend.workflow.vuln_detect.provider import fetch_ghsa_details
 from src.backend.utils.cmd import run_cmd_and_parse_output
+from src.backend.utils.df import save_df
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,7 +38,7 @@ def extract_sbom(dir_path: str, output_sbom_path: str) -> None:
 	syft_cmd = ["syft", "--from", "dir", dir_path, "-o", "spdx-json"]
 	run_cmd_and_parse_output(syft_cmd, return_dict=False, output_path=output_sbom_path)
 
-def perform_vuln_scan(sbom_path: str, output_scan_path: str = None, output_pd_path: str = None) -> pd.DataFrame:
+def perform_vuln_scan(sbom_path: str, output_pd_path: str, output_scan_path: str = None) -> pd.DataFrame:
 	"""
 	Perform vulnerability scan on the given SBOM path using grype and save the results to the specified output path (must end in '.parquet').
 	Example usage:
@@ -61,7 +62,7 @@ def perform_vuln_scan(sbom_path: str, output_scan_path: str = None, output_pd_pa
 	result_df =  _extract_grype_df(grype_scan_result)
 	print("finished converting grype scan to pandas dataframe")
 	# save the result to output_pd_path
-	result_df.to_parquet(output_pd_path, index=False)
+	save_df(result_df, output_pd_path)
 	print("finished saving grype scan pandas dataframe")
 	return result_df
 

@@ -9,7 +9,7 @@ import pandas as pd
 import os
 import json
 from src.backend.utils.cmd import run_cmd, run_cmd_and_parse_output
-from src.backend.utils.df import append_df
+from src.backend.utils.df import append_df, save_df
 from dotenv import load_dotenv
 import numpy as np
 
@@ -126,7 +126,7 @@ def vuln_code_identify(
     if not fixed_vuln_df.empty:
         output_df = append_df(output_df, fixed_vuln_df)
     # save output DataFrame to parquet
-    output_df.to_parquet(output_pd_path)
+    save_df(output_df, output_pd_path)
 
     return output_df
 
@@ -188,7 +188,7 @@ def _extract_semgrep_df(semgrep_result: Dict[str, Any], output_path: str) -> pd.
 
     # save to parquet if output_path is provided
     if output_path:
-        semgrep_extracted_df.to_parquet(output_path)
+        save_df(semgrep_extracted_df, output_path)
         print(f"Saved semgrep extracted DataFrame to {output_path}")
 
     return semgrep_extracted_df

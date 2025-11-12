@@ -24,6 +24,7 @@ RUN poetry install --only main --no-root
 COPY src/backend/workflow/vuln_detect/vuln_scan.py ./src/backend/workflow/vuln_detect/
 COPY src/backend/workflow/vuln_detect/provider.py ./src/backend/workflow/vuln_detect/
 COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/df.py ./src/backend/utils/
 COPY src/backend/utils/http.py ./src/backend/utils/
 COPY src/backend/schemas/models.py ./src/backend/schemas/
 COPY src/backend/workflow/vuln_detect/detector.py ./src/backend/workflow/vuln_detect/
@@ -52,6 +53,7 @@ ENV PATH=/vuln_detect/.venv/bin:$PATH
 COPY src/backend/workflow/vuln_detect/vuln_scan.py ./src/backend/workflow/vuln_detect/
 COPY src/backend/workflow/vuln_detect/provider.py ./src/backend/workflow/vuln_detect/
 COPY src/backend/utils/cmd.py ./src/backend/utils/
+COPY src/backend/utils/df.py ./src/backend/utils/
 COPY src/backend/utils/http.py ./src/backend/utils/
 COPY src/backend/schemas/models.py ./src/backend/schemas/
 COPY src/backend/workflow/vuln_detect/detector.py ./src/backend/workflow/vuln_detect/
