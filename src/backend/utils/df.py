@@ -3,6 +3,7 @@ from typing import Any, Dict, Iterable
 from datetime import datetime
 import importlib.util
 import pandas as pd
+import os
 
 def findings_to_df(items: Iterable[Any]) -> pd.DataFrame:
     return pd.DataFrame([item.model_dump() for item in items])
@@ -50,3 +51,11 @@ def append_df(output_df, df_to_append):
     else:
         output_df = pd.concat([output_df, df_to_append], ignore_index=True)
     return output_df
+
+def save_df(output_df: pd.DataFrame, output_path: str, format: str = "parquet"):
+    directory = os.path.dirname(output_path)
+    os.makedirs(directory, exist_ok=True)
+    if format == "parquet":
+        output_df.to_parquet(output_path, index=False)
+    else:
+        output_df.to_csv(output_path, index=False)
