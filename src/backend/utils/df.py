@@ -1,7 +1,7 @@
 # df.py
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable
 from datetime import datetime
 import importlib.util
 import os
@@ -17,9 +17,12 @@ def _default_outdir() -> str:
         return os.getenv("ASSESS_OUTDIR", "/tmp/assessments")
     return os.getenv("ASSESS_OUTDIR", "artifacts/assessments")
 
+#def findings_to_df(items: Iterable[Any]) -> pd.DataFrame:
+#    rows: List[Dict[str, Any]] = [model_to_dict(it) for it in items]
+#    return pd.DataFrame(rows)
+
 def findings_to_df(items: Iterable[Any]) -> pd.DataFrame:
-    rows: List[Dict[str, Any]] = [model_to_dict(it) for it in items]
-    return pd.DataFrame(rows)
+    return pd.DataFrame([item.model_dump() for item in items])
 
 def save_assessment_frames(
     df: pd.DataFrame, out_dir: str | None = None, stem: str | None = None, gzip_csv: bool = False

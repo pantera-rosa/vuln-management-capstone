@@ -72,7 +72,7 @@ class Remediation(BaseModel):
     cve_id: str
     package_name: str
     package_version: str
-    recommendation: str
+    recommendation: str = "Remediation not available"
     remediation_github_url: Optional[str] = None
 
 
