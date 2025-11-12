@@ -1,5 +1,4 @@
 from typing import List
-from pydantic import TypeAdapter
 from src.backend.schemas.models import VulnScan, VulnCodeIdentification
 import pandas as pd
 from src.backend.workflow.vuln_identify.vuln_code_identify import vuln_code_identify
