@@ -72,7 +72,7 @@ class Remediation(BaseModel):
     cve_id: str
     package_name: str
     package_version: str
-    recommendation: str
+    recommendation: Optional[str] = None
     remediation_github_url: Optional[str] = None
 
 
