@@ -1,6 +1,7 @@
 from __future__ import annotations
 import pandas as pd
-from src.backend.utils.cmd import run_cmd_and_parse_output
+from src.backend.utils.cmd import run_cmd_and_parse_output, run_cmd
+from src.backend.utils.df import save_df
 from dotenv import load_dotenv
 from typing import Optional, Dict
 import os
@@ -81,7 +82,8 @@ def generate_remediation(
                 remediation_suggestion = invoke_llm_model(model, tokenizer, prompt)
                 row['recommendation'] = remediation_suggestion
                 # create github issue with remediation suggestion
-                git_issue_output = run_cmd_and_parse_output(["gh", "issue", "create", "-R", f"{GITHUB_ORG_NAME}/{repo_name}", "-t", f"{row['cve_id']} Remediation: {row['summary']}", "-b", f"{remediation_suggestion}", "--json url", "--jq", ".url"])
+                run_cmd(["gh", "repo", "edit", f"{GITHUB_ORG_NAME}/{repo_name}", "--enable-issues"])
+                git_issue_output = run_cmd_and_parse_output(["gh", "issue", "create", "-R", f"{GITHUB_ORG_NAME}/{repo_name}", "-t", f"{row['cve_id']} Remediation: {row['summary']}", "-b", f"{remediation_suggestion}"], return_dict=False)
                 row['remediation_github_url'] = git_issue_output
             else:
                 print(f"Skipping vuln remediation for cve_id={row['cve_id']}, package_name={row['package_name']}, package_version={row['package_version']} as code snippet info is unavailable.")
@@ -94,7 +96,7 @@ def generate_remediation(
     output_df = pd.DataFrame(output_vulns)
 
     # save pandas dataframe to output_pd_path
-    output_df.to_parquet(output_pd_path, index=False)
+    save_df(output_df, output_pd_path)
 
     return output_df
 
