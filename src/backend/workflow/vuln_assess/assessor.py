@@ -103,44 +103,6 @@ def assess_vulns_df(findings: List[VulnCodeIdentification]) -> pd.DataFrame:
     """
     assessed = assess_vulns(findings)
     df = findings_to_df(assessed)
-    # Optional: column order for readability
-    cols = [
-        "cve_id",
-        "ghsa_id",
-        "severity",
-        "related_vuln_datasource",
-        "language",
-        "package_name",
-        "package_version",
-        "fixed_version",
-        "cvss_v2_score",
-        "cvss_v2_version",
-        "cvss_v2_base_score",
-        "cvss_v2_exploitability_score",
-        "cvss_v2_impact_score",
-        "cvss_v3_score",
-        "cvss_v3_version",
-        "cvss_v3_base_score",
-        "cvss_v3_exploitability_score",
-        "cvss_v3_impact_score",
-        "cvss_v4_score",
-        "cvss_v4_version",
-        "cvss_v4_base_score",
-        "cvss_v4_exploitability_score",
-        "cvss_v4_impact_score",
-        "epss_score",
-        "epss_percentile",
-        "kev",
-        "risk_score",
-        "risk_label",
-        "summary",
-        "description",
-        "references",
-        "source_code_location",
-        "cwe_id",
-        "cwe_name"
-    ]
-    df = df[[c for c in cols if c in df.columns]]
     return df
 
 

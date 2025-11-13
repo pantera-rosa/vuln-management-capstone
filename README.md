@@ -35,6 +35,7 @@ make scan            # Run vulnerability scan
 make detect          # alternative to make sbom -> make scan
 make identify        # Run vulnerable code identification
 make assess          # Risk assessment with EPSS/KEV
+make remediate       # Run vulnerable code remediation
 ```
 
 **Note:** This scans [VeraDemo](https://github.com/veracode/verademo) - a deliberately vulnerable Java web application designed for security testing.
@@ -61,6 +62,7 @@ ls artifacts/assessments/
 - **Scan**: `cve_id`, `ghsa_id`, `package_name`, `package_version`, `fixed_version`, `cvss_v2_score`, `cvss_v3_score`, `epss_score`, `summary`, `description`, `cwe_id`
 - **Identify**: `cwe_id`, `path`, `start_line`, `start_col`, `start_offset`, `end_line`, `end_col`, `end_offset`, `extra_lines`, `extra_dataflow_trace_taint_source`, `extra_dataflow_trace_intermediate_vars`, `extra_dataflow_trace_taint_sink`
 - **Assessment**: `risk_score`, `risk_label`, `kev`, `rationale` (CRITICAL/HIGH/MEDIUM/LOW)
+- **Remediation**: `recommendation`, `remediation_github_url`
 
 ## Project Structure
 
@@ -81,7 +83,8 @@ src/backend/
 │  ├─ compat.py              # Pydantic v1/v2 compatibility
 |  ├─ cmd.py                 # running CLI commands
 |  ├─ df.py                  # pandas dataframe compatability
-|  └─ http.py                # making httpe requests
+|  ├─ http.py                # making http requests
+|  └─ llm.py                 # loading and invoking LLMs
 └─ app/
    └─ main.py                # FastAPI application (optional)
 ```
@@ -107,7 +110,7 @@ src/backend/
 ### 🔧 **Remediation Support**
 
 - **Upgrade Recommendations**: Version suggestions for vulnerable packages
-- **Code Analysis**: Automated fix generation (planned)
+- **Code Patching**: Automated code fix generation
 
 ## Library Usage
 Replace arguments with appropriate values.
@@ -116,6 +119,7 @@ Replace arguments with appropriate values.
 from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom, perform_vuln_scan
 from src.backend.workflow.vuln_identify.vuln_code_identify import vuln_code_identify
 from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save
+from src.backend.worklfow.vuln_remediate.generate_remediation import generate_remediation
 from src.backend.schemas.models import VulnCodeIdentification
 
 # Scan VeraDemo (deliberately vulnerable Java app)
@@ -131,4 +135,8 @@ assessed_df, paths = assess_vulns_df_and_save(vulns, 'assessments')
 
 print(f"Found {len(df)} vulnerabilities")
 print(f"Risk assessment saved to {paths}")
+
+# Remediation
+remediated_df = generate_remediation(assessed_df, '01-ai/Yi-Coder-1.5B-Chat', 'remediations.parquet', 'repos', True)
+print(f"remediations: {remediated_df}")
 ```
