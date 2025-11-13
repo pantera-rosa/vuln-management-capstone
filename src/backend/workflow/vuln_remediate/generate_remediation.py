@@ -102,12 +102,13 @@ def generate_remediation(
 
     # save pandas dataframe to output_pd_path (parquet)
     save_df(output_df, output_pd_path)
+    print(f"Saved remediation results to Parquet path: {output_pd_path}")
     
     # also save as CSV if requested
     if save_csv:
         csv_path = output_pd_path.replace('.parquet', '.csv')
-        output_df.to_csv(csv_path, index=False)
-        print(f"Results also saved to CSV: {csv_path}")
+        save_df(output_df, csv_path, format="csv")
+        print(f"Remediation results also saved to CSV path: {csv_path}")
 
     return output_df
 
