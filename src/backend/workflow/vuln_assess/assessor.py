@@ -224,50 +224,6 @@ def assess_vulns_df(
     """
     assessed = assess_vulns_with_reachability(findings, enable_reachability)
     df = findings_to_df(assessed)
-    
-    # Column order for readability
-    cols = [
-        "cve_id",
-        "ghsa_id",
-        "package_name",
-        "package_version",
-        "language",
-        "related_vuln_datasource",
-        "severity",
-        "cvss_v4_score",
-        "cvss_v4_version",
-        "cvss_v4_base_score",
-        "cvss_v4_exploitability_score",
-        "cvss_v4_impact_score",
-        "cvss_v3_score",
-        "cvss_v3_version",
-        "cvss_v3_base_score",
-        "cvss_v3_exploitability_score",
-        "cvss_v3_impact_score",
-        "cvss_v2_score",
-        "cvss_v2_version",
-        "cvss_v2_base_score",
-        "cvss_v2_exploitability_score",
-        "cvss_v2_impact_score",
-        "epss_score",
-        "epss_percentile",
-        "kev",
-        "risk_score",
-        "risk_label",
-        "rationale",
-        "summary",
-        "description",
-        "references",
-        # Include path info for reachability context
-        "path",
-        "start_line",
-        "end_line",
-        "extra_dataflow_trace_taint_source",
-        "extra_dataflow_trace_intermediate_vars",
-        "extra_dataflow_trace_taint_sink",
-    ]
-    
-    df = df[[c for c in cols if c in df.columns]]
     return df
 
 
