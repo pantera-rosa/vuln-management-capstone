@@ -62,9 +62,22 @@ class VulnCodeIdentification(VulnScan):
 
 # 👇 Enriched result returned by assessment
 class VulnAssessment(VulnCodeIdentification):
-    kev: bool | None = None
-    risk_score: float | None = None
-    risk_label: str | None = None
+    """
+    Vulnerability assessment with risk scoring and reachability analysis.
+    
+    New fields added by assessment workflow:
+    - reachable: Whether vulnerability is reachable from application code
+    - reachability_reason: Explanation of reachability determination
+    - kev: Whether vulnerability is in CISA KEV catalog
+    - risk_score: Calculated risk score (0-100)
+    - risk_label: Risk category (CRITICAL/HIGH/MEDIUM/LOW)
+    - rationale: Full explanation of risk calculation
+    """
+    reachable: Optional[bool] = None
+    reachability_reason: Optional[str] = None
+    kev: Optional[bool] = None
+    risk_score: Optional[float] = None
+    risk_label: Optional[str] = None
     rationale: Optional[str] = None
 
 

@@ -28,7 +28,7 @@ assess:
 	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnCodeIdentification; import pandas as pd; import numpy as np; df=pd.read_parquet('artifacts/identify/semgrep_results_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnCodeIdentification(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
 
 remediate:
-	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=artifacts/assessments/assessment_20251109-032128.parquet --dep_repos_root_dir_path=artifacts/identify/repos  --model_id=01-ai/Yi-Coder-1.5B-Chat --with_quantization=True --output_pd_path=artifacts/remediate/remediate_pd.parquet --display=True
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=artifacts/assessments/assessment_20251113-150156.parquet --dep_repos_root_dir_path=artifacts/identify/repos  --model_id=01-ai/Yi-Coder-1.5B-Chat --with_quantization=True --output_pd_path=artifacts/remediate/remediate_pd.parquet --display=True
 
 pipeline: detect identify assess remediate
 
