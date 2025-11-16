@@ -1,121 +1,159 @@
 import os
-import sys
-import shutil
-import subprocess
+import json
 import boto3
-
-# Add the Lambda task root to Python path
-sys.path.insert(0, os.environ.get('LAMBDA_TASK_ROOT', '/var/task'))
-
-# Now import after path is set
+import subprocess
+from datetime import datetime
 from src.backend.workflow.vuln_detect.vuln_scan import extract_sbom, perform_vuln_scan
 
+# Initialize AWS SDK clients
 s3_client = boto3.client('s3')
-sns_client = boto3.client('sns')
+
+# Configure Grype to use /tmp for any runtime caching
+# The pre-downloaded DB is at /opt/grype-db (read-only)
+# But Grype may need /tmp for temporary files
+os.environ['XDG_CACHE_HOME'] = '/tmp/.cache'
+os.environ['GRYPE_DB_CACHE_DIR'] = '/opt/grype-db'
+
+# Ensure /tmp cache directory exists
+os.makedirs('/tmp/.cache', exist_ok=True)
 
 def lambda_handler(event, context):
     """
-    Lambda handler for vulnerability scanning.
-    Clones a repo, generates SBOM, scans for vulnerabilities, and uploads results to S3.
+    Lambda handler for vulnerability detection workflow.
+    
+    Expected event format:
+    {
+        "repo_url": "https://github.com/apache/logging-log4j1.git",
+        "repo_name": ""  # optional, will be extracted from URL if not provided
+    }
     """
-    print("Starting vulnerability scan...")
+    # Configuration via environment variables
+    bucket_name = os.environ['S3_BUCKET']
+    output_prefix = os.environ.get('OUTPUT_PREFIX', 'scans').rstrip('/')
     
-    # Configuration
-    repo_url = event.get('repo_url', "https://github.com/veracode/verademo.git")
-    repo_dir = "/tmp/verademo"
+    # Get repository URL from event
+    repo_url = event.get('repo_url', "https://github.com/apache/logging-log4j1.git")
+    if not repo_url:
+        raise ValueError("repo_url is required in the event")
     
-    # Clean old clone if exists
-    if os.path.exists(repo_dir):
-        print(f"Cleaning old repository at {repo_dir}")
-        shutil.rmtree(repo_dir)
+    # Extract repo name from URL if not provided
+    repo_name = event.get('repo_name')
+    if not repo_name:
+        # Extract from URL: https://github.com/user/repo.git -> repo
+        repo_name = repo_url.rstrip('/').split('/')[-1].replace('.git', '')
     
-    # Clone repository
-    print(f"Cloning repository from {repo_url}...")
+    # Create timestamp for this scan
+    timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    scan_id = f"{repo_name}-{timestamp}"
+    
+    print(f"Starting vulnerability scan for {repo_name}...")
+    print(f"Repository URL: {repo_url}")
+    print(f"Scan ID: {scan_id}")
+    
+    # Define paths in /tmp (Lambda's writable directory)
+    repo_dir = f"/tmp/{repo_name}"
+    sbom_path = f"/tmp/{scan_id}.sbom.spdx.json"
+    scan_json_path = f"/tmp/{scan_id}.scan.json"
+    scan_parquet_path = f"/tmp/{scan_id}.scan.parquet"
+    
     try:
-        subprocess.run(
-            ["git", "clone", repo_url, repo_dir],
-            check=True,
+        # Step 1: Clone the repository
+        print(f"Cloning repository from {repo_url}...")
+        if os.path.exists(repo_dir):
+            subprocess.run(["rm", "-rf", repo_dir], check=True)
+        
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", repo_url, repo_dir],
             capture_output=True,
-            text=True
+            text=True,
+            check=True
         )
         print(f"Repository cloned successfully to {repo_dir}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error cloning repository: {e.stderr}")
-        raise
-    
-    # Set up file paths
-    sbom_path = "/tmp/verademo_sbom.spdx.json"
-    scan_json_path = "/tmp/vuln_report.json"
-    scan_parquet_path = "/tmp/vuln_report.parquet"
-    
-    # Extract SBOM
-    print(f"Extracting SBOM to {sbom_path}...")
-    extract_sbom(repo_dir, sbom_path)
-    print("SBOM extraction complete")
-    
-    # Perform vulnerability scan
-    print(f"Performing vulnerability scan...")
-    vuln_df = perform_vuln_scan(
-        sbom_path=sbom_path,
-        output_scan_path=scan_json_path,
-        output_pd_path=scan_parquet_path
-    )
-    print(f"Vulnerability scan complete. Found {len(vuln_df)} vulnerabilities")
-    
-    # Upload results to S3
-    results_bucket = os.environ['S3_BUCKET']
-    s3_prefix = f"verademo/scans/{context.aws_request_id}"
-    
-    print(f"Uploading results to s3://{results_bucket}/{s3_prefix}/")
-    s3_client.upload_file(sbom_path, results_bucket, f"{s3_prefix}/sbom.spdx.json")
-    s3_client.upload_file(scan_json_path, results_bucket, f"{s3_prefix}/vuln_report.json")
-    s3_client.upload_file(scan_parquet_path, results_bucket, f"{s3_prefix}/vuln_report.parquet")
-    print("Upload complete")
-    
-    # Optional: Send SNS notification
-    if 'SNS_TOPIC_ARN' in os.environ:
-        print("Sending SNS notification...")
-        sns_topic = os.environ['SNS_TOPIC_ARN']
-        msg = create_summary_message(vuln_df, s3_prefix, results_bucket)
-        sns_client.publish(
-            TopicArn=sns_topic,
-            Subject="Vulnerability Scan Complete",
-            Message=msg
-        )
-        print("SNS notification sent")
-    
-    # Return success response
-    return {
-        "statusCode": 200,
-        "body": {
-            "status": "completed",
-            "s3_output": f"s3://{results_bucket}/{s3_prefix}/",
-            "total_vulnerabilities": len(vuln_df),
-            "request_id": context.aws_request_id
+        
+        # Step 2: Extract SBOM using Syft
+        print("Extracting SBOM with Syft...")
+        extract_sbom(repo_dir, sbom_path)
+        print(f"SBOM extracted to {sbom_path}")
+        
+        # Check SBOM file size for debugging
+        if os.path.exists(sbom_path):
+            sbom_size = os.path.getsize(sbom_path)
+            print(f"SBOM file size: {sbom_size} bytes")
+        
+        # Step 3: Perform vulnerability scan using Grype
+        print("Performing vulnerability scan with Grype...")
+        print(f"Using Grype DB at: {os.environ.get('GRYPE_DB_CACHE_DIR')}")
+        
+        vuln_df = perform_vuln_scan(sbom_path, scan_parquet_path, scan_json_path)
+        print(f"Vulnerability scan complete. Found {len(vuln_df)} vulnerabilities")
+        
+        # Step 4: Upload results to S3
+        s3_output_prefix = f"{output_prefix}/{scan_id}"
+        result_urls = {}
+        
+        # Upload SBOM
+        sbom_s3_key = f"{s3_output_prefix}/sbom.spdx.json"
+        s3_client.upload_file(sbom_path, bucket_name, sbom_s3_key)
+        result_urls['sbom'] = f"s3://{bucket_name}/{sbom_s3_key}"
+        print(f"Uploaded SBOM: {result_urls['sbom']}")
+        
+        # Upload scan JSON
+        if os.path.exists(scan_json_path):
+            scan_json_s3_key = f"{s3_output_prefix}/scan.json"
+            s3_client.upload_file(scan_json_path, bucket_name, scan_json_s3_key)
+            result_urls['scan_json'] = f"s3://{bucket_name}/{scan_json_s3_key}"
+            print(f"Uploaded scan JSON: {result_urls['scan_json']}")
+        
+        # Upload scan Parquet (the main output)
+        scan_parquet_s3_key = f"{s3_output_prefix}/scan.parquet"
+        s3_client.upload_file(scan_parquet_path, bucket_name, scan_parquet_s3_key)
+        result_urls['scan_parquet'] = f"s3://{bucket_name}/{scan_parquet_s3_key}"
+        print(f"Uploaded scan Parquet: {result_urls['scan_parquet']}")
+        
+        # Get vulnerability summary
+        severity_counts = vuln_df['severity'].value_counts().to_dict() if 'severity' in vuln_df.columns else {}
+        
+        # Cleanup /tmp to save space for future invocations
+        print("Cleaning up temporary files...")
+        subprocess.run(["rm", "-rf", repo_dir], check=False)
+        for tmp_file in [sbom_path, scan_json_path, scan_parquet_path]:
+            if os.path.exists(tmp_file):
+                os.remove(tmp_file)
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'scan_id': scan_id,
+                'repo_name': repo_name,
+                'repo_url': repo_url,
+                'timestamp': timestamp,
+                'output_files': result_urls,
+                'summary': {
+                    'total_vulnerabilities': len(vuln_df),
+                    'severity_counts': severity_counts
+                }
+            })
         }
-    }
-
-def create_summary_message(vuln_df, prefix, bucket):
-    """Create a summary message for SNS notification."""
-    total = len(vuln_df)
-    summary = f"Vulnerability Scan Complete\n"
-    summary += f"=" * 50 + "\n"
-    summary += f"Total vulnerabilities found: {total}\n\n"
+        
+    except subprocess.CalledProcessError as e:
+        error_msg = f"Command failed: {e.cmd}\nStdout: {e.stdout}\nStderr: {e.stderr}"
+        print(error_msg)
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'error': 'Command execution failed',
+                'details': error_msg
+            })
+        }
     
-    if total > 0:
-        # Count by severity
-        if 'severity' in vuln_df.columns:
-            severity_counts = vuln_df['severity'].value_counts().to_dict()
-            summary += "Severity Breakdown:\n"
-            for severity, count in sorted(severity_counts.items()):
-                summary += f"  {severity}: {count}\n"
-            summary += "\n"
-    
-    summary += f"Results Location:\n"
-    summary += f"  s3://{bucket}/{prefix}/\n"
-    summary += f"\nFiles:\n"
-    summary += f"  - sbom.spdx.json\n"
-    summary += f"  - vuln_report.json\n"
-    summary += f"  - vuln_report.parquet\n"
-    
-    return summary
+    except Exception as e:
+        print(f"Error during vulnerability scan: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'error': str(e),
+                'scan_id': scan_id if 'scan_id' in locals() else None
+            })
+        }

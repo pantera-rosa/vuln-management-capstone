@@ -24,7 +24,7 @@ def identify_vulns(
         vuln_scan_df=vuln_scan_df,
         dep_repos_root_dir_path=dep_repos_root_dir_path,
         output_scans_dir_path=output_scans_dir_path,
-        output_scans_pd_dir_path=output_scans_pd_dir_path, 
+        output_scans_pd_dir_path=output_scans_pd_dir_path,
         output_pd_path=output_pd_path
     )
 

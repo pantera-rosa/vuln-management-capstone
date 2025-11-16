@@ -52,4 +52,3 @@ def run_cmd(cmd: list[str]):
     except Exception as e:
         raise RuntimeError(f"failed to run {cmd} due to error: {e.stderr}") from e
     return proc
-
