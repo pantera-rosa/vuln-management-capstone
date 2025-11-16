@@ -10,7 +10,7 @@ def load_llm(model_id: str, with_quantization: bool = False):
     
     Args:
         model_id: HuggingFace model identifier
-        with_quantization: Whether to use 4-bit quantization (GPU only)
+        with_quantization: Whether to use quantization (4-bit on GPU, 8-bit dynamic on CPU)
     
     Returns:
         tuple: (model, tokenizer)
@@ -41,30 +41,28 @@ def load_llm(model_id: str, with_quantization: bool = False):
     # Prepare loading configuration
     quantization_config = None
     device_map = None
+    torch_dtype = torch.float32  # Default for CPU
+    apply_cpu_quantization = False
     
     if use_gpu and with_quantization:
-        print("⚙️  Loading with 4-bit quantization on GPU...")
+        print("🔧 Configuring 4-bit quantization for GPU...")
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
             bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True
         )
         device_map = "auto"
+        torch_dtype = torch.float16
     elif use_gpu:
-        print("⚙️  Loading model on GPU...")
         device_map = "auto"
+        torch_dtype = torch.float16
     else:
-        print("⚙️  Loading model on CPU (this may take longer)...")
-        # Force CPU mode
         device_map = {"": "cpu"}
-        # Quantization doesn't work well on CPU, disable it
+        torch_dtype = torch.float32
         if with_quantization:
-            warnings.warn(
-                "Quantization requested but running on CPU. "
-                "Quantization will be disabled. For quantization, use GPU mode."
-            )
-            with_quantization = False
+            print("🔧 Will apply 8-bit dynamic quantization for CPU after loading...")
+            apply_cpu_quantization = True
     
     # Load tokenizer
     print(f"📥 Loading tokenizer for {model_id}...")
@@ -77,11 +75,22 @@ def load_llm(model_id: str, with_quantization: bool = False):
             model_id,
             quantization_config=quantization_config,
             device_map=device_map,
-            torch_dtype=torch.float16 if use_gpu else torch.float32,
+            torch_dtype=torch_dtype,
             low_cpu_mem_usage=True  # More memory efficient
         )
         
-        if use_gpu:
+        # Apply CPU quantization if requested
+        if apply_cpu_quantization:
+            print("🔧 Applying 8-bit dynamic quantization to CPU model...")
+            model = torch.quantization.quantize_dynamic(
+                model,
+                {torch.nn.Linear},  # Quantize linear layers
+                dtype=torch.qint8
+            )
+            print(f"✅ Model loaded on CPU with 8-bit dynamic quantization")
+        elif use_gpu and with_quantization:
+            print(f"✅ Model loaded on GPU with 4-bit quantization")
+        elif use_gpu:
             print(f"✅ Model loaded on GPU")
         else:
             print(f"✅ Model loaded on CPU")
@@ -99,7 +108,18 @@ def load_llm(model_id: str, with_quantization: bool = False):
                 torch_dtype=torch.float32,
                 low_cpu_mem_usage=True
             )
-            print(f"✅ Model loaded on CPU (fallback)")
+            
+            # Apply CPU quantization if originally requested
+            if with_quantization:
+                print("🔧 Applying 8-bit dynamic quantization to CPU model...")
+                model = torch.quantization.quantize_dynamic(
+                    model,
+                    {torch.nn.Linear},
+                    dtype=torch.qint8
+                )
+                print(f"✅ Model loaded on CPU (fallback) with 8-bit dynamic quantization")
+            else:
+                print(f"✅ Model loaded on CPU (fallback)")
         else:
             raise
     
