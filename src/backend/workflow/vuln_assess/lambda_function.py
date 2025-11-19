@@ -13,7 +13,7 @@ s3_client = boto3.client('s3')
 def lambda_handler(event, context):
     # Configuration via environment variables
     bucket_name = os.environ['S3_BUCKET']
-    input_prefix = os.environ.get('S3_INPUT_PREFIX', 'verademo').rstrip('/')
+    input_prefix = os.environ.get('S3_INPUT_PREFIX', 'scans').rstrip('/')
     output_prefix = os.environ.get('S3_OUTPUT_PREFIX', 'assessments').rstrip('/')
     
     # Check if a specific folder was provided in the event
