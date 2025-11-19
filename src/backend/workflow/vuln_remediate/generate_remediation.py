@@ -18,14 +18,19 @@ def generate_remediation(
     model_id: str,
     output_pd_path: str,
     dep_repos_root_dir_path: str,
-    with_quantization: bool = False
+    with_quantization: bool = False,
+    save_csv: bool = True
 ) -> pd.DataFrame:
     """
     Generate remediation suggestions for vulnerabilities in the given DataFrame.
 
     Args:
-        vuln_assess_df (pd.DataFrame): DataFrame containing vulnerability assessments.
-        output_pd_path (str): Path to save the output DataFrame with remediation suggestions.
+        vuln_df (pd.DataFrame): DataFrame containing vulnerability assessments.
+        model_id (str): Model ID for LLM to use in remediation generation.
+        output_pd_path (str): Path to save the output DataFrame with remediation suggestions in Parquet format.
+        dep_repos_root_dir_path (str): Root directory path for dependency repositories.
+        with_quantization (bool): Whether to use 4-bit quantization for the LLM.
+        save_csv (bool): Whether to also save results as CSV (default: True).
 
     Returns:
         pd.DataFrame: DataFrame with remediation suggestions added.
@@ -95,8 +100,15 @@ def generate_remediation(
 
     output_df = pd.DataFrame(output_vulns)
 
-    # save pandas dataframe to output_pd_path
+    # save pandas dataframe to output_pd_path (parquet)
     save_df(output_df, output_pd_path)
+    print(f"Saved remediation results to Parquet path: {output_pd_path}")
+    
+    # also save as CSV if requested
+    if save_csv:
+        csv_path = output_pd_path.replace('.parquet', '.csv')
+        save_df(output_df, csv_path, format="csv")
+        print(f"Remediation results also saved to CSV path: {csv_path}")
 
     return output_df
 

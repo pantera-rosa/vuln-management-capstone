@@ -13,7 +13,23 @@ def remediate_vulns(
         output_pd_path: str,
         dep_repos_root_dir_path: str,
         with_quantization: bool = False,
-        display: bool = False) -> List[Remediation]:
+        display: bool = False,
+        save_csv: bool = True) -> List[Remediation]:
+    """
+    Run vulnerability remediation workflow.
+    
+    Args:
+        items: List of vulnerability assessments
+        model_id: LLM model ID for remediation generation
+        output_pd_path: Path to save parquet results
+        dep_repos_root_dir_path: Root directory for dependency repos
+        with_quantization: Whether to use 4-bit quantization
+        display: Whether to display results
+        save_csv: Whether to also save results as CSV (default: True)
+    
+    Returns:
+        List of Remediation objects
+    """
     # convert items to pandas Dataframe
     vuln_df = findings_to_df(items)
     # run vuln code remediation
@@ -22,7 +38,8 @@ def remediate_vulns(
         model_id=model_id,
         output_pd_path=output_pd_path,
         dep_repos_root_dir_path=dep_repos_root_dir_path,
-        with_quantization=with_quantization
+        with_quantization=with_quantization,
+        save_csv=save_csv
     )
 
     if display:
@@ -40,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--with_quantization", type=bool, default=False, help=" (optional) If set, the specified LLM is loaded with 4-bit quantization.")
     parser.add_argument("--output_pd_path", type=str, required=True, help="Path to save the final vulnerability code remediation results in Parquet format.")
     parser.add_argument("--display", type=bool, default=False, help=" (optional) If set, display the final vulnerability code remediation dataframe to stdout after processing.")
+    parser.add_argument("--save_csv", type=bool, default=True, help=" (optional) If set, also save results as CSV alongside Parquet file.")
 
     args = parser.parse_args()
 
@@ -53,5 +71,6 @@ if __name__ == "__main__":
         with_quantization=bool(args.with_quantization),
         output_pd_path=args.output_pd_path,
         dep_repos_root_dir_path=args.dep_repos_root_dir_path,
-        display=bool(args.display)
+        display=bool(args.display),
+        save_csv=bool(args.save_csv)
     )
