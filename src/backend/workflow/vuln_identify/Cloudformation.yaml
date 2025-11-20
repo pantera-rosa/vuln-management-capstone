@@ -29,12 +29,12 @@ Parameters:
   JobMemory:
     Type: Number
     Description: Memory for each job (in MiB)
-    Default: 8192
+    Default: 32000 
 
   JobvCpus:
     Type: Number
     Description: vCPUs for each job
-    Default: 4
+    Default: 16
 
 Resources:
   BatchServiceRole:
@@ -199,17 +199,13 @@ Resources:
   ComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
-      ComputeEnvironmentName: vuln-identify-compute-env-ec2
+      ComputeEnvironmentName: vuln-identify-compute-env
       Type: MANAGED
       State: ENABLED
       ServiceRole: !GetAtt BatchServiceRole.Arn
       ComputeResources:
-        Type: EC2
-        MinvCpus: 0
-        MaxvCpus: 16
-        DesiredvCpus: 0
-        InstanceTypes:
-          - optimal
+        Type: FARGATE
+        MaxvCpus: !Ref MaxvCpus
         Subnets:
           - !Ref PublicSubnet1
           - !Ref PublicSubnet2
@@ -260,13 +256,11 @@ Resources:
           - Name: ENABLE_DATAFLOW_TRACES
             Value: "false"
           - Name: SEMGREP_NUM_JOBS
-            Value: "6"
-          - Name: PYTHONUNBUFFERED
-            Value: "1"
+            Value: "10"
       RetryStrategy:
         Attempts: 1
       Timeout:
-        AttemptDurationSeconds: 28800
+        AttemptDurationSeconds: 7200
 
   LogGroup:
     Type: AWS::Logs::LogGroup

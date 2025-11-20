@@ -112,7 +112,7 @@ def main():
     
     # Get semgrep configuration from environment variables
     enable_dataflow = os.environ.get('ENABLE_DATAFLOW_TRACES', 'false').lower() == 'true'
-    semgrep_jobs = int(os.environ.get('SEMGREP_NUM_JOBS', '4'))
+    semgrep_jobs = int(os.environ.get('SEMGREP_NUM_JOBS', '10'))
     semgrep_timeout = int(os.environ.get('SEMGREP_TIMEOUT', '300'))  # 5 minutes per rule
     max_file_size = int(os.environ.get('SEMGREP_MAX_FILE_SIZE', '1000000'))  # 1MB
     
