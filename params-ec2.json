@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "S3BucketName",
+    "ParameterValue": "vg-vuln-scan-artifacts-20251016215106"
+  },
+  {
+    "ParameterKey": "GitHubToken",
+    "ParameterValue": "your_github_token"
+  },
+  {
+    "ParameterKey": "SemgrepAppToken",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ECRImageUri",
+    "ParameterValue": "654654605701.dkr.ecr.us-east-1.amazonaws.com/vg-vuln-identify:latest"
+  },
+  {
+    "ParameterKey": "KeyPairName",
+    "ParameterValue": "batch-vuln-identify"
+  }
+]

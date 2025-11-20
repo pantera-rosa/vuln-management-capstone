@@ -24,9 +24,24 @@ def vuln_code_identify(
         dep_repos_root_dir_path: str,
         output_scans_dir_path: str | None, 
         output_scans_pd_dir_path: str, 
-        output_pd_path: str) -> pd.DataFrame:
+        output_pd_path: str,
+        semgrep_jobs: int = 10,
+        enable_dataflow_traces: bool = True,
+        semgrep_timeout: int = None,
+        max_file_size: int = None) -> pd.DataFrame:
     """
     Run vulnerability code identification for unfixed vulnerabilities.
+
+    Args:
+        vuln_scan_df: DataFrame with vulnerability scan results
+        dep_repos_root_dir_path: Root directory for cloning repos
+        output_scans_dir_path: Directory for raw semgrep JSON outputs
+        output_scans_pd_dir_path: Directory for processed parquet outputs
+        output_pd_path: Path for final output parquet file
+        semgrep_jobs: Number of parallel semgrep jobs (default: 10)
+        enable_dataflow_traces: Enable dataflow traces (default: True)
+        semgrep_timeout: Timeout per rule in seconds (default: None)
+        max_file_size: Max file size to scan in bytes (default: None)
 
     Returns:
         pd.DataFrame: DataFrame containing vulnerability code identification results.
@@ -96,7 +111,14 @@ def vuln_code_identify(
                 semgrep_scan_result = json.load(f)
         else:
             # note: provide semgrep app token in env vars to get fuller results
-            semgrep_scan_result = _run_semgrep_scan(dir_path, output_path=output_scan_path)
+            semgrep_scan_result = _run_semgrep_scan(
+                dir_path, 
+                output_path=output_scan_path,
+                num_subprocesses=semgrep_jobs,
+                enable_dataflow_traces=enable_dataflow_traces,
+                timeout=semgrep_timeout,
+                max_file_size=max_file_size
+            )
         print("finished semgrep scan.")
 
         # convert semgrep scan result to pandas dataframe if corresponding pandas dataframe doesn't already exist
@@ -130,13 +152,23 @@ def vuln_code_identify(
 
     return output_df
 
-def _run_semgrep_scan(dir_path: str, output_path: str | None, num_subprocesses=10) -> Dict[str, Any]:
+def _run_semgrep_scan(
+        dir_path: str, 
+        output_path: str | None, 
+        num_subprocesses: int = 10,
+        enable_dataflow_traces: bool = True,
+        timeout: int = None,
+        max_file_size: int = None) -> Dict[str, Any]:
     """
     Run semgrep scan on the given directory.
 
     Args:
         dir_path (str): Path to the directory to scan.
         output_path (str | None): Path to save the semgrep scan output JSON file. If None, output is not saved to file.
+        num_subprocesses (int): Number of parallel jobs (default: 10)
+        enable_dataflow_traces (bool): Enable dataflow traces (default: True)
+        timeout (int): Timeout per rule in seconds (default: None)
+        max_file_size (int): Max file size to scan in bytes (default: None)
 
     Returns:
         Dict[str, Any]: Semgrep scan result as a dictionary.
@@ -147,9 +179,19 @@ def _run_semgrep_scan(dir_path: str, output_path: str | None, num_subprocesses=1
         dir_path,
         "-j",
         str(num_subprocesses),
-        "--json",
-        "--dataflow-traces"
+        "--json"
     ]
+    
+    # Add optional parameters
+    if enable_dataflow_traces:
+        semgrep_cmd.append("--dataflow-traces")
+    
+    if timeout:
+        semgrep_cmd.extend(["--timeout", str(timeout)])
+    
+    if max_file_size:
+        semgrep_cmd.extend(["--max-target-bytes", str(max_file_size)])
+    
     if output_path:
         semgrep_cmd.extend(["--json-output", output_path])
 
