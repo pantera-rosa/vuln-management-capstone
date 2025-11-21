@@ -30,7 +30,7 @@ assess:
 ASSESS_DIR:= artifacts/assessments
 LATEST_ASSESS_FILE:= $(shell ls -t $(ASSESS_DIR)/*.parquet | head -n 1)
 remediate:
-	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(LATEST_ASSESS_FILE) --dep_repos_root_dir_path=artifacts/identify/repos  --model_id=01-ai/Yi-Coder-1.5B-Chat --with_quantization=True --output_pd_path=artifacts/remediate/log4j_remediate_pd.parquet --display=True
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(LATEST_ASSESS_FILE) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=jumpstart-dft-meta-textgeneration-l-20251120-210732 --output_pd_path=artifacts/remediate/log4j_remediate_pd.parquet --use_sagemaker=True --sagemaker_endpoint_name=jumpstart-dft-meta-textgeneration-l-20251120-210732 --aws_region=us-east-1 --display=True
 
 pipeline: detect identify assess remediate
 

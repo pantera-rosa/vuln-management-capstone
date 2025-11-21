@@ -14,7 +14,10 @@ def remediate_vulns(
         dep_repos_root_dir_path: str,
         with_quantization: bool = False,
         display: bool = False,
-        save_csv: bool = True) -> List[Remediation]:
+        save_csv: bool = True,
+        use_sagemaker: bool = False,
+        sagemaker_endpoint_name: str = None,
+        aws_region: str = None) -> List[Remediation]:
     """
     Run vulnerability remediation workflow.
     
@@ -26,6 +29,9 @@ def remediate_vulns(
         with_quantization: Whether to use 4-bit quantization
         display: Whether to display results
         save_csv: Whether to also save results as CSV (default: True)
+        use_sagemaker: Whether to use SageMaker endpoint instead of local model
+        sagemaker_endpoint_name: Name of SageMaker endpoint (used if use_sagemaker=True)
+        aws_region: AWS region for SageMaker (defaults to us-east-1)
     
     Returns:
         List of Remediation objects
@@ -39,7 +45,10 @@ def remediate_vulns(
         output_pd_path=output_pd_path,
         dep_repos_root_dir_path=dep_repos_root_dir_path,
         with_quantization=with_quantization,
-        save_csv=save_csv
+        save_csv=save_csv,
+        use_sagemaker=use_sagemaker,
+        sagemaker_endpoint_name=sagemaker_endpoint_name,
+        aws_region=aws_region
     )
 
     if display:
@@ -58,6 +67,9 @@ if __name__ == "__main__":
     parser.add_argument("--output_pd_path", type=str, required=True, help="Path to save the final vulnerability code remediation results in Parquet format.")
     parser.add_argument("--display", type=bool, default=False, help=" (optional) If set, display the final vulnerability code remediation dataframe to stdout after processing.")
     parser.add_argument("--save_csv", type=bool, default=True, help=" (optional) If set, also save results as CSV alongside Parquet file.")
+    parser.add_argument("--use_sagemaker", type=bool, default=False, help=" (optional) If set, use SageMaker endpoint instead of local LLM model.")
+    parser.add_argument("--sagemaker_endpoint_name", type=str, default=None, help=" (optional) Name of the SageMaker endpoint to use (required if --use_sagemaker is True).")
+    parser.add_argument("--aws_region", type=str, default="us-east-1", help=" (optional) AWS region for SageMaker endpoint (default: us-east-1).")
 
     args = parser.parse_args()
 
@@ -72,5 +84,8 @@ if __name__ == "__main__":
         output_pd_path=args.output_pd_path,
         dep_repos_root_dir_path=args.dep_repos_root_dir_path,
         display=bool(args.display),
-        save_csv=bool(args.save_csv)
+        save_csv=bool(args.save_csv),
+        use_sagemaker=bool(args.use_sagemaker),
+        sagemaker_endpoint_name=args.sagemaker_endpoint_name,
+        aws_region=args.aws_region
     )
