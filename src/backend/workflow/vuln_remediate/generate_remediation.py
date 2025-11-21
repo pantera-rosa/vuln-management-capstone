@@ -84,12 +84,10 @@ def generate_remediation(
 
             # generate remediation suggestion based on code snippet and other details
             if code_snippet_dict['code_snippet'] and code_snippet_dict['file_contents']:
-                # construct prompt for remediation generation
-                prompt = _construct_prompt(row, code_snippet_dict)
-                
                 # invoke LLM with prompt to get remediation suggestion
                 if use_sagemaker:
-                    # Use SageMaker endpoint
+                    # Use SageMaker endpoint - create prompt directly from code snippet
+                    prompt = _construct_prompt(row, code_snippet_dict)
                     remediation_suggestion = invoke_sagemaker_endpoint(
                         prompt=prompt,
                         endpoint_name=sagemaker_endpoint_name,
@@ -100,7 +98,7 @@ def generate_remediation(
                     model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
                     # extract code context
                     code_snippet_dict = _extract_code_context(model, tokenizer, row, code_snippet_dict)
-                    # reconstruct prompt after code context extraction
+                    # construct prompt after code context extraction
                     prompt = _construct_prompt(row, code_snippet_dict)
                     remediation_suggestion = invoke_llm_model(model, tokenizer, prompt)
                 
@@ -243,6 +241,9 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
     """
     Construct LLM prompt for code remediation.
     """
+    # Use code_context if available (local LLM), otherwise use file_contents (SageMaker)
+    code_context = code_snippet_info.get('code_context') or code_snippet_info.get('file_contents', '')
+    
     prompt = f"""
     Your task is to generate the code fix for the following vulnerable code snippet,
     given the provided supplementary information.
@@ -262,7 +263,7 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
     - Extra message: {row['extra_message']}
     - Vulnerable code file contents:
     ```
-    {code_snippet_info['code_context']}
+    {code_context}
     ```
 
     Evaluate the vulnerable code snippet based on the supplementary vulnerability
