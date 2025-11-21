@@ -7,6 +7,7 @@ from typing import Optional, Dict
 import os
 from pathlib import Path
 from src.backend.utils.llm import load_llm, invoke_llm_model
+from src.backend.aws.sagemaker.sagemaker import invoke_sagemaker_endpoint
 
 load_dotenv()
 
@@ -19,7 +20,10 @@ def generate_remediation(
     output_pd_path: str,
     dep_repos_root_dir_path: str,
     with_quantization: bool = False,
-    save_csv: bool = True
+    save_csv: bool = True,
+    use_sagemaker: bool = False,
+    sagemaker_endpoint_name: Optional[str] = None,
+    aws_region: Optional[str] = None
 ) -> pd.DataFrame:
     """
     Generate remediation suggestions for vulnerabilities in the given DataFrame.
@@ -31,6 +35,9 @@ def generate_remediation(
         dep_repos_root_dir_path (str): Root directory path for dependency repositories.
         with_quantization (bool): Whether to use 4-bit quantization for the LLM.
         save_csv (bool): Whether to also save results as CSV (default: True).
+        use_sagemaker (bool): Whether to use SageMaker endpoint instead of local LLM model.
+        sagemaker_endpoint_name (str, optional): Name of SageMaker endpoint (required if use_sagemaker=True).
+        aws_region (str, optional): AWS region for SageMaker (defaults to us-east-1).
 
     Returns:
         pd.DataFrame: DataFrame with remediation suggestions added.
@@ -77,14 +84,26 @@ def generate_remediation(
 
             # generate remediation suggestion based on code snippet and other details
             if code_snippet_dict['code_snippet'] and code_snippet_dict['file_contents']:
-                # load LLM model
-                model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
-                # extract code context
-                code_snippet_dict = _extract_code_context(model, tokenizer, row, code_snippet_dict)
                 # construct prompt for remediation generation
                 prompt = _construct_prompt(row, code_snippet_dict)
+                
                 # invoke LLM with prompt to get remediation suggestion
-                remediation_suggestion = invoke_llm_model(model, tokenizer, prompt)
+                if use_sagemaker:
+                    # Use SageMaker endpoint
+                    remediation_suggestion = invoke_sagemaker_endpoint(
+                        prompt=prompt,
+                        endpoint_name=sagemaker_endpoint_name,
+                        region=aws_region
+                    )
+                else:
+                    # Use local LLM model
+                    model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
+                    # extract code context
+                    code_snippet_dict = _extract_code_context(model, tokenizer, row, code_snippet_dict)
+                    # reconstruct prompt after code context extraction
+                    prompt = _construct_prompt(row, code_snippet_dict)
+                    remediation_suggestion = invoke_llm_model(model, tokenizer, prompt)
+                
                 row['recommendation'] = remediation_suggestion
                 # create github issue with remediation suggestion
                 run_cmd(["gh", "repo", "edit", f"{GITHUB_ORG_NAME}/{repo_name}", "--enable-issues"])
