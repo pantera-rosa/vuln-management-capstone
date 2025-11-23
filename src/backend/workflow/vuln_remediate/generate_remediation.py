@@ -344,9 +344,8 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
         "file_contents", ""
     )
 
-    # Generate CWE-specific remediation guidance
-    cwe_id = str(row.get("cwe_id", ""))
-    remediation_hint = _get_cwe_remediation_hint(cwe_id, row.get("cwe_name", ""))
+    # Generate remediation guidance
+    remediation_hint = f"Fix the {row.get('cwe_name', 'this')} vulnerability. Apply standard security best practices for this type of issue."
 
     prompt = f"""
     Your task is to generate the code fix for the following vulnerable code snippet.
@@ -381,24 +380,3 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
     ```
     """
     return prompt
-
-
-def _get_cwe_remediation_hint(cwe_id: str, cwe_name: str) -> str:
-    """
-    Return CWE-specific remediation hints.
-    """
-    hints = {
-        "CWE-89": "SQL INJECTION FIX: Replace Statement.executeUpdate(sql) with PreparedStatement using parameterized queries. Use connection.prepareStatement(sql) with ? placeholders, then use setString/setInt/etc to bind parameters.",
-        "CWE-79": "XSS INJECTION FIX: Sanitize and escape user input before displaying in HTML. Use appropriate encoding functions.",
-        "CWE-502": "DESERIALIZATION FIX: Use a whitelist approach or safe deserialization methods. Avoid ObjectInputStream on untrusted data.",
-        "CWE-400": "RESOURCE CONSUMPTION FIX: Add rate limiting, input validation, or resource quotas to prevent unbounded resource consumption.",
-        "CWE-396": "BROAD EXCEPTION FIX: Replace broad Exception catch with specific exception types. Catch only the exceptions you expect.",
-    }
-
-    # Check if CWE ID matches any hints
-    for cwe_key, hint in hints.items():
-        if cwe_key in cwe_id:
-            return hint
-
-    # Default generic hint
-    return f"Fix the {cwe_name} vulnerability. Apply standard security best practices for this type of issue."
