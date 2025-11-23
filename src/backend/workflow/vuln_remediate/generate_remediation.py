@@ -57,7 +57,7 @@ def generate_remediation(
         if row["fixed_version"]:
             # if fixed, add recommendation to bump up version
             print(
-                f"⬆️  [{idx+1}/{len(vuln_df)}] {row['cve_id']}: Using fixed version (no LLM needed)"
+                f"[{idx+1}/{len(vuln_df)}] {row['cve_id']}: Using fixed version (no LLM needed)"
             )
             row["recommendation"] = (
                 f"Upgrade {row['package_name']} from existing vulnerable version {row['package_version']} to fixed version {row['fixed_version']}."
@@ -97,7 +97,7 @@ def generate_remediation(
                 # invoke LLM with prompt to get remediation suggestion
                 if use_sagemaker:
                     print(
-                        f"🚀 [SageMaker] Calling endpoint for remediation of {row['cve_id']}"
+                        f"[SageMaker] Calling endpoint for remediation of {row['cve_id']}"
                     )
                     prompt = _construct_prompt(row, code_snippet_dict)
                     remediation_suggestion = invoke_sagemaker_endpoint(
@@ -107,7 +107,7 @@ def generate_remediation(
                     )
                     print(f"✅ [SageMaker] Received response for {row['cve_id']}")
                 else:
-                    # Use local LLM model
+                    # use local LLM model
                     model, tokenizer = load_llm(
                         model_id, with_quantization=with_quantization
                     )

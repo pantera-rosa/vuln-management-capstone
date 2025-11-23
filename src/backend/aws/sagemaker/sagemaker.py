@@ -63,7 +63,6 @@ def invoke_sagemaker_endpoint(
         else:
             generated_text = str(result)
 
-        # Clean up response - remove prompt if present
         cleaned_text = _extract_response_content(generated_text)
 
         print(f"Generated {len(cleaned_text)} characters from SageMaker endpoint")
@@ -79,21 +78,16 @@ def _extract_response_content(text: str) -> str:
     Extract only the patched code, removing the prompt if present.
     Prioritizes "Patched code:" marker to get the fixed code.
     """
-    # First priority: Look for "Patched code:" or "PATCHED CODE:"
     patched_markers = ["Patched code:", "PATCHED CODE:", "## Patched code:"]
     for marker in patched_markers:
         if marker in text:
-            # Find the LAST occurrence (to skip any prompts)
             pos = text.rfind(marker) + len(marker)
-            # Extract from after the marker
             content = text[pos:].strip()
-            # Remove leading code fence markers if present
             if content.startswith("```"):
                 content = content[3:].strip()
-            # Remove trailing code fence markers if present
             if content.endswith("```"):
                 content = content[:-3].strip()
             return content
 
-    # Fallback: Return text as is
+    # fallback: return text as is
     return text.strip()
