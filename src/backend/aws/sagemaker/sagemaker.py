@@ -38,7 +38,7 @@ def invoke_sagemaker_endpoint(
     sagemaker_runtime = boto3.client("sagemaker-runtime", region_name=region)
 
     payload = {
-        "inputs": [prompt],
+        "inputs": prompt,
         "parameters": {
             "max_new_tokens": max_tokens,
             "do_sample": True,

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from src.backend.utils.llm import load_llm, invoke_llm_model
 from src.backend.aws.sagemaker.sagemaker import invoke_sagemaker_endpoint
+import re
 
 load_dotenv()
 
@@ -46,7 +47,7 @@ def generate_remediation(
     # skip if output_pd_path already exists and is non-empty
     if os.path.isfile(output_pd_path) and os.path.getsize(output_pd_path) > 0:
         print(
-            f"Vulnerability code identification dataframe file {output_pd_path} already exists and is non-empty. Skipping vulnerability code identification."
+            f"Vulnerability code remediation dataframe file {output_pd_path} already exists and is non-empty. Skipping vulnerability code remediation."
         )
         return pd.read_parquet(output_pd_path)
 
@@ -94,11 +95,21 @@ def generate_remediation(
 
             # generate remediation suggestion based on code snippet and other details
             if code_snippet_dict["code_snippet"] and code_snippet_dict["file_contents"]:
+                # extract java code context manually. If code is not java, this should return empty string
+                code_snippet_dict = _extract_java_code_context_manual(row, code_snippet_dict)
                 # invoke LLM with prompt to get remediation suggestion
                 if use_sagemaker:
                     print(
                         f"[SageMaker] Calling endpoint for remediation of {row['cve_id']}"
                     )
+                    # if code context is empty, use sagemaker to extract code context
+                    if not code_snippet_dict.get("code_context"):
+                        code_snippet_dict = _extract_code_context_sagemaker(
+                            row,
+                            code_snippet_dict,
+                            sagemaker_endpoint_name,
+                            aws_region,
+                        )
                     prompt = _construct_prompt(row, code_snippet_dict)
                     remediation_suggestion = invoke_sagemaker_endpoint(
                         prompt=prompt,
@@ -108,14 +119,20 @@ def generate_remediation(
                     print(f"✅ [SageMaker] Received response for {row['cve_id']}")
                 else:
                     # use local LLM model
+                    print(
+                        f"[Local LLM] Generating remediation for {row['cve_id']}"
+                    )
                     model, tokenizer = load_llm(
                         model_id, with_quantization=with_quantization
                     )
-                    code_snippet_dict = _extract_code_context(
-                        model, tokenizer, row, code_snippet_dict
-                    )
+                    # if code context is empty, use local llm to extract code context
+                    if not code_snippet_dict.get("code_context"):
+                        code_snippet_dict = _extract_code_context(
+                            model, tokenizer, row, code_snippet_dict
+                        )
                     prompt = _construct_prompt(row, code_snippet_dict)
                     remediation_suggestion = invoke_llm_model(model, tokenizer, prompt)
+                    print(f"✅ [Local LLM] Received response for {row['cve_id']}")
 
                 row["recommendation"] = remediation_suggestion
                 # create github issue with remediation suggestion
@@ -308,6 +325,76 @@ def _extract_code_context_sagemaker(
         )
     return code_snippet_dict
 
+def _extract_java_code_context_manual(
+    row: pd.Series, 
+    code_snippet_dict: Dict[str, str]
+    ) -> Dict[str, str]:
+    """
+    Extracts the full code of the enclosing Java method for a given line number.
+
+    Args:
+        full_code: The complete Java source code as a string.
+        line_number: The 1-based line number of the target snippet.
+
+    Returns:
+        The extracted method code as a string, or an empty string if not found.
+    """
+    full_code = code_snippet_dict.get("file_contents", "")
+    line_number = int(row.get("start_line", 0))
+    lines = full_code.splitlines()
+    if not (1 <= line_number <= len(lines)):
+        return "" # Line number out of bounds
+
+    # Adjust to 0-based index
+    target_index = line_number - 1
+
+    # Step 1: Find the method signature by searching upwards from the target line
+    method_start_index = -1
+    # Regex for Java method signature (simplified, may need refinement for all cases)
+    # This pattern looks for access modifiers, return type, method name, and parameters
+    method_signature_pattern = re.compile(
+        r'^\s*(public|protected|private|static|final|abstract|synchronized|native)?\s+'
+        r'(<[\w,\s]+>)?\s*[\w\d_]+\s+[\w\d_]+\s*\(.*?\)\s*(throws\s+[\w\d_,\s]+)?\s*\{'
+    )
+
+    for i in range(target_index, -1, -1):
+        line = lines[i]
+        # Check if the line looks like a method signature. We're looking for the line *containing* the { or ending with {.
+        if re.search(method_signature_pattern, line.strip()):
+            method_start_index = i
+            break
+
+    if method_start_index == -1:
+        # If the direct signature regex failed, try a more general search for method-like structure
+        # looking for public/protected/private, return type, method name, and opening parenthesis
+        for i in range(target_index, -1, -1):
+            line = lines[i].strip()
+            if re.match(r'^(public|protected|private)\s+.*?\s+.*?\s*\(', line):
+                method_start_index = i
+                break
+        if method_start_index == -1:
+            return "" # Could not find an enclosing method signature
+
+
+    # Step 2: Find the corresponding closing brace for the method body
+    brace_count = 0
+    method_end_index = -1
+
+    # Start counting braces from the method signature line
+    for i in range(method_start_index, len(lines)):
+        line = lines[i]
+        brace_count += line.count('{')
+        brace_count -= line.count('}')
+
+        if brace_count == 0 and '}' in line:
+            method_end_index = i
+            break
+
+    if method_end_index == -1:
+        return "" # Unbalanced braces or method end not found
+
+    code_snippet_dict["code_context"] = "\n".join(lines[method_start_index:method_end_index + 1])
+    return code_snippet_dict
 
 def _construct_extract_code_context_prompt(
     row: pd.Series, code_snippet_dict: Dict[str, str]
@@ -316,19 +403,21 @@ def _construct_extract_code_context_prompt(
     Construct LLM prompt for code context extraction.
     """
     code_extract_prompt = f"""
-        Extract the {row['language']} code from the code file contents that is relevant to the provided code snippet.
-        Code file contents:
-        ```
-        {code_snippet_dict['file_contents']}
-        ```
-        code snippet:
-        ```
-        {code_snippet_dict['code_snippet']}
-        ```
-        Provide only the extracted {row['language']} code for the taint flow in the output. Do not just return the code snippet.
-        extracted code:
-        ```
-        """
+    You are a cybersecurity engineer who is an expert at fixing vulnerable code.
+    Extract the {row['language']} code from the code file contents that is relevant to the provided code snippet.
+    Code file contents:
+    ```
+    {code_snippet_dict['file_contents']}
+    ```
+    code snippet:
+    ```
+    {code_snippet_dict['code_snippet']}
+    ```
+    Provide only the extracted {row['language']} code for the taint flow in the output. Do not just return the code snippet.
+
+    extracted code:
+    ```
+    """
     return code_extract_prompt
 
 
@@ -339,15 +428,16 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
     # Get code snippet - should always be present
     code_snippet = code_snippet_info.get("code_snippet", "")
 
-    # Use code_context if available (local LLM), otherwise use file_contents (SageMaker)
+    # Use code_context if available, otherwise use file_contents
     code_context = code_snippet_info.get("code_context") or code_snippet_info.get(
         "file_contents", ""
     )
 
     # Generate remediation guidance
-    remediation_hint = f"Fix the {row.get('cwe_name', 'this')} vulnerability. Apply standard security best practices for this type of issue."
+    remediation_hint = f"Fix the {row.get('cwe_name', 'this')} vulnerability. Apply standard security best practices for this type of issue. {row.get('extra_message', '')}"
 
     prompt = f"""
+    You are a cybersecurity engineer who is an expert at fixing vulnerable code.
     Your task is to generate the code fix for the following vulnerable code snippet.
 
     VULNERABILITY INFORMATION:
@@ -371,9 +461,9 @@ def _construct_prompt(row: pd.Series, code_snippet_info: Dict[str, str]) -> str:
 
     REQUIREMENTS:
     1. Fix the vulnerability described in the CWE
-    2. Keep the same function signature and return type
+    2. Keep the same function signature and return type, unless a change is absolutely necessary to fix the vulnerability.
     3. Maintain compatibility with the rest of the code
-    4. Only output the patched code - no explanations or comments
+    4. Only output the patched code - no explanations or comments. Omit the closing ``` markers.
     5. Output valid, compilable {row['language']} code
 
     PATCHED CODE:
