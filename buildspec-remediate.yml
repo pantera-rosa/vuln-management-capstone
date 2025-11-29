@@ -29,7 +29,6 @@ phases:
       - aws sts get-caller-identity
       - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
       - export LATEST_ASSESSMENT=$(aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive --query 'sort_by(Contents, &LastModified)[-1].Key' --output text)
-      - echo "Latest assessment file: $LATEST_ASSESSMENT"
       - poetry run python scripts/run_remediation_from_build.py
 
 artifacts:
