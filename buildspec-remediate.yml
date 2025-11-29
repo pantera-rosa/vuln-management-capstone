@@ -24,6 +24,10 @@ phases:
       - export PATH="/root/.local/bin:$PATH"
       - poetry install --no-root
       - pip install "transformers>=4.46.0,<5.0.0"
+  pre_build:
+    commands:
+      - git config --global credential.helper store
+      - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
 
   build:
     commands:
