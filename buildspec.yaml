@@ -50,16 +50,20 @@ phases:
       - export PATH="/root/.local/bin:$PATH"
       - export PYTHONPATH="$(pwd):$PYTHONPATH"
       - |
-        poetry run python -m src.backend.workflow.vuln_identify.vuln_code_identify \
-          --s3-input-prefix "$S3_INPUT_PREFIX" \
-          --s3-bucket "$S3_BUCKET" \
-          --s3-output-prefix "$S3_OUTPUT_PREFIX" \
-          --semgrep-jobs "$SEMGREP_NUM_JOBS" \
-          --semgrep-timeout "$SEMGREP_TIMEOUT" \
-          --max-file-size "$SEMGREP_MAX_FILE_SIZE" \
-          $(if [ "$ENABLE_DATAFLOW_TRACES" = "true" ]; then echo "--enable-dataflow-traces"; fi)
+        cat > /tmp/run_vuln_identify.sh << 'SCRIPT_EOF'
+        #!/bin/bash
+        set -e
+        poetry run python -u src/backend/workflow/vuln_identify/vuln_code_identify.py \
+          --s3-bucket vg-vuln-scan-artifacts-20251016215106 \
+          --s3-input-prefix scans \
+          --s3-output-prefix identifications \
+          --semgrep-jobs 32 \
+          --semgrep-timeout 300 \
+          --max-file-size 1000000
+        SCRIPT_EOF
+      - chmod +x /tmp/run_vuln_identify.sh
+      - bash /tmp/run_vuln_identify.sh
   
   post_build:
     commands:
-      - echo "Build completed at $(date)"
-      - echo "Results at s3://$S3_BUCKET/$S3_OUTPUT_PREFIX/"
+      - echo "Build completed"
