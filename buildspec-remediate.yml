@@ -10,6 +10,9 @@ env:
     USE_4BIT_QUANTIZATION: "true"
     PYTHONUNBUFFERED: "1"
 
+  parameter-store:
+    GH_TOKEN: "/vuln-remediate/github-token"
+
 phases:
   install:
     runtime-versions:
