@@ -11,14 +11,24 @@ from src.backend.workflow.vuln_remediate.generate_remediation import (
 
 def main() -> None:
     bucket = os.environ["S3_BUCKET"]
-    latest_assessment = os.environ["LATEST_ASSESSMENT"]
     assessments_prefix = os.environ.get("S3_ASSESSMENTS_PREFIX", "assessments")
     remediation_prefix = os.environ.get("S3_REMEDIATION_PREFIX", "remediations")
     model_id = os.environ.get("MODEL_ID", "meta-llama/Meta-Llama-3.1-8B-Instruct")
     use_4bit = os.environ.get("USE_4BIT_QUANTIZATION", "false").lower() == "true"
 
-    print(f"Bucket={bucket}, latest_assessment={latest_assessment}")
     s3 = boto3.client("s3")
+
+    # Find the most recent assessment object under the prefix
+    prefix = assessments_prefix.rstrip("/") + "/"
+    resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    contents = resp.get("Contents", [])
+    if not contents:
+        raise RuntimeError(f"No assessment objects found under s3://{bucket}/{prefix}")
+
+    latest_obj = max(contents, key=lambda o: o["LastModified"])
+    latest_assessment = latest_obj["Key"]
+
+    print(f"Bucket={bucket}, latest_assessment={latest_assessment}")
 
     local_path = "/tmp/assessment.parquet"
     s3.download_file(bucket, latest_assessment, local_path)
