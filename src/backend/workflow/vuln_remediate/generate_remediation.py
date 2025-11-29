@@ -21,7 +21,7 @@ def generate_remediation(
     model_id: str,
     output_pd_path: str,
     dep_repos_root_dir_path: str,
-    with_quantization: bool = False,
+    with_quantization: bool = True,
     save_csv: bool = True,
     use_sagemaker: bool = False,
     sagemaker_endpoint_name: Optional[str] = None,
@@ -96,7 +96,9 @@ def generate_remediation(
             # generate remediation suggestion based on code snippet and other details
             if code_snippet_dict["code_snippet"] and code_snippet_dict["file_contents"]:
                 # extract java code context manually. If code is not java, this should return empty string
-                code_snippet_dict = _extract_java_code_context_manual(row, code_snippet_dict)
+                code_snippet_dict = _extract_java_code_context_manual(
+                    row, code_snippet_dict
+                )
                 # invoke LLM with prompt to get remediation suggestion
                 if use_sagemaker:
                     print(
@@ -119,9 +121,7 @@ def generate_remediation(
                     print(f"✅ [SageMaker] Received response for {row['cve_id']}")
                 else:
                     # use local LLM model
-                    print(
-                        f"[Local LLM] Generating remediation for {row['cve_id']}"
-                    )
+                    print(f"[Local LLM] Generating remediation for {row['cve_id']}")
                     model, tokenizer = load_llm(
                         model_id, with_quantization=with_quantization
                     )
@@ -325,10 +325,10 @@ def _extract_code_context_sagemaker(
         )
     return code_snippet_dict
 
+
 def _extract_java_code_context_manual(
-    row: pd.Series, 
-    code_snippet_dict: Dict[str, str]
-    ) -> Dict[str, str]:
+    row: pd.Series, code_snippet_dict: Dict[str, str]
+) -> Dict[str, str]:
     """
     Extracts the full code of the enclosing Java method for a given line number.
 
@@ -343,7 +343,7 @@ def _extract_java_code_context_manual(
     line_number = int(row.get("start_line", 0))
     lines = full_code.splitlines()
     if not (1 <= line_number <= len(lines)):
-        return "" # Line number out of bounds
+        return ""  # Line number out of bounds
 
     # Adjust to 0-based index
     target_index = line_number - 1
@@ -353,8 +353,8 @@ def _extract_java_code_context_manual(
     # Regex for Java method signature (simplified, may need refinement for all cases)
     # This pattern looks for access modifiers, return type, method name, and parameters
     method_signature_pattern = re.compile(
-        r'^\s*(public|protected|private|static|final|abstract|synchronized|native)?\s+'
-        r'(<[\w,\s]+>)?\s*[\w\d_]+\s+[\w\d_]+\s*\(.*?\)\s*(throws\s+[\w\d_,\s]+)?\s*\{'
+        r"^\s*(public|protected|private|static|final|abstract|synchronized|native)?\s+"
+        r"(<[\w,\s]+>)?\s*[\w\d_]+\s+[\w\d_]+\s*\(.*?\)\s*(throws\s+[\w\d_,\s]+)?\s*\{"
     )
 
     for i in range(target_index, -1, -1):
@@ -369,12 +369,11 @@ def _extract_java_code_context_manual(
         # looking for public/protected/private, return type, method name, and opening parenthesis
         for i in range(target_index, -1, -1):
             line = lines[i].strip()
-            if re.match(r'^(public|protected|private)\s+.*?\s+.*?\s*\(', line):
+            if re.match(r"^(public|protected|private)\s+.*?\s+.*?\s*\(", line):
                 method_start_index = i
                 break
         if method_start_index == -1:
-            return "" # Could not find an enclosing method signature
-
+            return ""  # Could not find an enclosing method signature
 
     # Step 2: Find the corresponding closing brace for the method body
     brace_count = 0
@@ -383,18 +382,21 @@ def _extract_java_code_context_manual(
     # Start counting braces from the method signature line
     for i in range(method_start_index, len(lines)):
         line = lines[i]
-        brace_count += line.count('{')
-        brace_count -= line.count('}')
+        brace_count += line.count("{")
+        brace_count -= line.count("}")
 
-        if brace_count == 0 and '}' in line:
+        if brace_count == 0 and "}" in line:
             method_end_index = i
             break
 
     if method_end_index == -1:
-        return "" # Unbalanced braces or method end not found
+        return ""  # Unbalanced braces or method end not found
 
-    code_snippet_dict["code_context"] = "\n".join(lines[method_start_index:method_end_index + 1])
+    code_snippet_dict["code_context"] = "\n".join(
+        lines[method_start_index : method_end_index + 1]
+    )
     return code_snippet_dict
+
 
 def _construct_extract_code_context_prompt(
     row: pd.Series, code_snippet_dict: Dict[str, str]
