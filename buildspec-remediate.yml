@@ -6,7 +6,7 @@ env:
     S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
     S3_ASSESSMENTS_PREFIX: "assessments"
     S3_REMEDIATION_PREFIX: "remediations"
-    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    MODEL_ID: "meta-llama/Meta-Llama/Meta-Llama-3.1-8B-Instruct"
     USE_4BIT_QUANTIZATION: "true"
     PYTHONUNBUFFERED: "1"
 
@@ -28,7 +28,7 @@ phases:
       - export PYTHONPATH="$CODEBUILD_SRC_DIR:$PYTHONPATH"
       - aws sts get-caller-identity
       - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
-      - "export LATEST_ASSESSMENT=$(aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive --query 'sort_by(Contents, &LastModified)[-1].Key' --output text)"
+      - export LATEST_ASSESSMENT=$(aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | sort | tail -n 1 | awk '{print $4}')
       - echo "Latest assessment file: $LATEST_ASSESSMENT"
       - poetry run python scripts/run_remediation_from_build.py
 
