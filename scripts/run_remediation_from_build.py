@@ -36,8 +36,11 @@ def main() -> None:
     df = pd.read_parquet(local_path)
     print(f"Loaded {len(df)} vulnerability records")
 
-    output_parquet = "/tmp/remediation_results.parquet"
-    output_json = "/tmp/remediation_results.json"
+    output_dir = Path("./artifacts/remediate")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    assessment_stem = Path(latest_assessment).stem
+    output_parquet = str(output_dir / f"remediation_{assessment_stem}.parquet")
+    output_json = str(output_dir / f"remediation_{assessment_stem}.json")
 
     remediated_df = generate_remediation(
         vuln_df=df,
@@ -52,7 +55,6 @@ def main() -> None:
 
     print(f"✅ Remediation complete. Generated {len(remediated_df)} fixes")
 
-    assessment_stem = Path(latest_assessment).stem
     parquet_key = f"{remediation_prefix}/remediation_{assessment_stem}.parquet"
     json_key = f"{remediation_prefix}/remediation_{assessment_stem}.json"
 
