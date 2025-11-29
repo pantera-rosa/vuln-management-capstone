@@ -2,15 +2,15 @@ version: 0.2
 
 env:
   variables:
-    USE_SAGEMAKER: "false",
-    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct",
-    USE_4BIT_QUANTIZATION: "true",
-    AWS_DEFAULT_REGION: "us-east-1",
-    S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106",
-    S3_ASSESSMENTS_PREFIX: "assessments",
-    S3_REMEDIATION_PREFIX: "remediations",
-    SAGEMAKER_ENDPOINT: "jumpstart-dft-meta-textgeneration-l-20251120-210732",
-    PYTHONUNBUFFERED: "1",
+    USE_SAGEMAKER: "false"
+    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    USE_4BIT_QUANTIZATION: "true"
+    AWS_DEFAULT_REGION: "us-east-1"
+    S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
+    S3_ASSESSMENTS_PREFIX: "assessments"
+    S3_REMEDIATION_PREFIX: "remediations"
+    SAGEMAKER_ENDPOINT: "jumpstart-dft-meta-textgeneration-l-20251120-210732"
+    PYTHONUNBUFFERED: "1"
   parameter-store:
     HF_TOKEN: "/vuln-remediate/huggingface-token"
 
@@ -106,4 +106,5 @@ artifacts:
   files:
     - "**/*"
   name: "remediation-output"
+
 
