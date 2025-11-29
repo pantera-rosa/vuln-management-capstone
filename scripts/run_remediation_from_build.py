@@ -40,7 +40,6 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     assessment_stem = Path(latest_assessment).stem
     output_parquet = str(output_dir / f"remediation_{assessment_stem}.parquet")
-    output_json = str(output_dir / f"remediation_{assessment_stem}.json")
 
     remediated_df = generate_remediation(
         vuln_df=df,
@@ -55,14 +54,17 @@ def main() -> None:
 
     print(f"✅ Remediation complete. Generated {len(remediated_df)} fixes")
 
+    # Upload Parquet to S3 (CSV is also saved locally by generate_remediation if save_csv=True)
     parquet_key = f"{remediation_prefix}/remediation_{assessment_stem}.parquet"
-    json_key = f"{remediation_prefix}/remediation_{assessment_stem}.json"
-
     s3.upload_file(output_parquet, bucket, parquet_key)
-    s3.upload_file(output_json, bucket, json_key)
-
     print(f"✅ Uploaded: s3://{bucket}/{parquet_key}")
-    print(f"✅ Uploaded: s3://{bucket}/{json_key}")
+
+    # Also upload CSV if it exists
+    output_csv = output_parquet.replace(".parquet", ".csv")
+    if Path(output_csv).exists():
+        csv_key = f"{remediation_prefix}/remediation_{assessment_stem}.csv"
+        s3.upload_file(output_csv, bucket, csv_key)
+        print(f"✅ Uploaded: s3://{bucket}/{csv_key}")
 
 
 if __name__ == "__main__":
