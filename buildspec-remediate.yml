@@ -11,7 +11,7 @@ env:
     PYTHONUNBUFFERED: "1"
 
   parameter-store:
-    GH_TOKEN: "/vuln-remediate/github-token"
+    GH_TOKEN: "/vuln-identify/github-token"
 
 phases:
   install:
