@@ -2,16 +2,13 @@ version: 0.2
 
 env:
   variables:
-    USE_SAGEMAKER: "false"
-    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    USE_4BIT_QUANTIZATION: "true"
     AWS_DEFAULT_REGION: "us-east-1"
     S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
     S3_ASSESSMENTS_PREFIX: "assessments"
     S3_REMEDIATION_PREFIX: "remediations"
+    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    USE_4BIT_QUANTIZATION: "true"
     PYTHONUNBUFFERED: "1"
-  #parameter-store:
-  #HF_TOKEN: "/vuln-remediate/huggingface-token"
 
 phases:
   install:
@@ -20,96 +17,20 @@ phases:
     commands:
       - echo "Installing dependencies..."
       - apt-get update -qq
-      - echo "Installing Poetry..."
       - curl -sSL https://install.python-poetry.org | python3 -
       - export PATH="/root/.local/bin:$PATH"
-
-  pre_build:
-    commands:
-      - echo "Installing Python dependencies..."
-      - export PATH="/root/.local/bin:$PATH"
       - poetry install --no-root
-      - echo "Verifying AWS access and S3..."
-      - aws sts get-caller-identity
-      - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
 
   build:
     commands:
       - echo "Starting remediation workflow..."
       - export PATH="/root/.local/bin:$PATH"
       - export PYTHONPATH="$CODEBUILD_SRC_DIR:$PYTHONPATH"
-
-      # Get the most recent assessment file
-      - |
-        LATEST_ASSESSMENT=$(aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ \
-          --recursive \
-          --query 'sort_by(Contents, &LastModified)[-1].Key' \
-          --output text)
-
+      - aws sts get-caller-identity
+      - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
+      - export LATEST_ASSESSMENT=$(aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive --query 'sort_by(Contents, &LastModified)[-1].Key' --output text)
       - echo "Latest assessment file: $LATEST_ASSESSMENT"
-
-      # Run remediation with LOCAL model
-      - |
-        poetry run python -c "
-        import os
-        import pandas as pd
-        import boto3
-        from pathlib import Path
-
-        # Env vars
-        model_id = os.getenv('MODEL_ID', 'meta-llama/Meta-Llama-3.1-8B-Instruct')
-        use_sagemaker = os.getenv('USE_SAGEMAKER', 'false').lower() == 'true'
-        use_4bit = os.getenv('USE_4BIT_QUANTIZATION', 'false').lower() == 'true'
-        hf_token = os.getenv('HF_TOKEN')
-
-        print(f'Model: {model_id}, use_sagemaker={use_sagemaker}, use_4bit={use_4bit}')
-
-        # Download assessment file
-        s3 = boto3.client('s3')
-        local_path = '/tmp/assessment.parquet'
-        s3.download_file('$S3_BUCKET', '$LATEST_ASSESSMENT', local_path)
-
-        # Load data
-        df = pd.read_parquet(local_path)
-        print(f'Loaded {len(df)} vulnerability records')
-
-        # Run remediation
-        from src.backend.workflow.vuln_remediate.generate_remediation import generate_remediation
-
-        output_parquet = '/tmp/remediation_results.parquet'
-        output_json = '/tmp/remediation_results.json'
-
-        remediated_df = generate_remediation(
-            vuln_df=df,
-            model_id=model_id,
-            output_pd_path=output_parquet,
-            dep_repos_root_dir_path='./artifacts/identify/repos',
-            with_quantization=use_4bit,
-            use_sagemaker=False,  # <--- LOCAL ONLY
-            sagemaker_endpoint_name=None,
-            aws_region='us-east-1',
-            output_json_path=output_json,
-            hf_token=hf_token  # only if the function supports this arg
-        )
-
-        print(f'✅ Remediation complete. Generated {len(remediated_df)} fixes')
-
-        # Upload results to S3
-        assessment_stem = Path('$LATEST_ASSESSMENT').stem
-
-        parquet_key = f'$S3_REMEDIATION_PREFIX/remediation_{assessment_stem}.parquet'
-        json_key = f'$S3_REMEDIATION_PREFIX/remediation_{assessment_stem}.json'
-
-        s3.upload_file(output_parquet, '$S3_BUCKET', parquet_key)
-        s3.upload_file(output_json, '$S3_BUCKET', json_key)
-
-        print(f'✅ Uploaded: s3://$S3_BUCKET/{parquet_key}')
-        print(f'✅ Uploaded: s3://$S3_BUCKET/{json_key}')
-        "
-
-  post_build:
-    commands:
-      - echo "Remediation workflow completed at $(date)"
+      - poetry run python scripts/run_remediation_from_build.py
 
 artifacts:
   files:
