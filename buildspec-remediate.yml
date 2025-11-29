@@ -20,6 +20,7 @@ phases:
       - curl -sSL https://install.python-poetry.org | python3 -
       - export PATH="/root/.local/bin:$PATH"
       - poetry install --no-root
+      - pip install "transformers>=4.46.0,<5.0.0"
 
   build:
     commands:
