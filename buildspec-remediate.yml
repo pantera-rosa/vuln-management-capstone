@@ -1,5 +1,8 @@
 version: 0.2
 
+# Use ECR image (set this in CodeBuild project settings or via environment variable)
+# image: <your-account-id>.dkr.ecr.us-east-1.amazonaws.com/vuln-remediate:latest
+
 env:
   variables:
     AWS_DEFAULT_REGION: "us-east-1"
@@ -14,29 +17,23 @@ env:
     GH_TOKEN: "/vuln-identify/github-token"
 
 phases:
-  install:
-    runtime-versions:
-      python: 3.12
-    commands:
-      - echo "Installing dependencies..."
-      - apt-get update -qq
-      - curl -sSL https://install.python-poetry.org | python3 -
-      - export PATH="/root/.local/bin:$PATH"
-      - poetry install --no-root
-      - pip install "transformers>=4.46.0,<5.0.0"
   pre_build:
     commands:
+      - echo "Using ECR image - dependencies already installed"
       - git config --global credential.helper store
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+      - echo "Verifying environment..."
+      - python3 --version
+      - poetry --version || echo "Poetry not in PATH (expected if using ECR image)"
+      - gh --version || echo "GitHub CLI not found"
 
   build:
     commands:
       - echo "Starting remediation workflow..."
-      - export PATH="/root/.local/bin:$PATH"
       - export PYTHONPATH="$CODEBUILD_SRC_DIR:$PYTHONPATH"
       - aws sts get-caller-identity
       - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
-      - poetry run python scripts/run_remediation_from_build.py
+      - python3 scripts/run_remediation_from_build.py
 
 artifacts:
   files:

@@ -52,6 +52,15 @@ def generate_remediation(
         return pd.read_parquet(output_pd_path)
 
     output_vulns = []
+    
+    # Load model once if using local LLM (more efficient than loading per vulnerability)
+    model = None
+    tokenizer = None
+    if not use_sagemaker:
+        print(f"📥 Pre-loading local LLM model: {model_id}")
+        print(f"   This may take a minute...")
+        model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
+        print(f"   ✅ Model loaded and ready for {len(vuln_df)} vulnerabilities")
 
     # iterate through vulnerabilities to generate remediation suggestions
     for idx, row in vuln_df.iterrows():
@@ -120,11 +129,8 @@ def generate_remediation(
                     )
                     print(f"✅ [SageMaker] Received response for {row['cve_id']}")
                 else:
-                    # use local LLM model
-                    print(f"[Local LLM] Generating remediation for {row['cve_id']}")
-                    model, tokenizer = load_llm(
-                        model_id, with_quantization=with_quantization
-                    )
+                    # use local LLM model (already loaded above)
+                    print(f"[Local LLM] Generating remediation for {row['cve_id']} ({idx+1}/{len(vuln_df)})")
                     # if code context is empty, use local llm to extract code context
                     if not code_snippet_dict.get("code_context"):
                         code_snippet_dict = _extract_code_context(
