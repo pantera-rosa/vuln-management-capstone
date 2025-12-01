@@ -23,12 +23,18 @@ phases:
       - git config --global credential.helper store
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - echo "Installing AWS CLI..."
-      - apt-get update -qq
-      - apt-get install -y unzip
-      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-      - unzip -q awscliv2.zip
-      - ./aws/install
-      - rm -rf awscliv2.zip aws
+      - |
+        if ! command -v aws &> /dev/null; then
+          apt-get update -qq
+          apt-get install -y unzip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -o -q awscliv2.zip
+          ./aws/install
+          rm -rf awscliv2.zip aws
+          echo "AWS CLI installed successfully"
+        else
+          echo "AWS CLI already installed"
+        fi
       - aws --version
       - echo "Verifying environment..."
       - python3 --version
