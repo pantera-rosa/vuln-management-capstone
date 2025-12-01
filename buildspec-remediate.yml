@@ -15,6 +15,7 @@ env:
 
   parameter-store:
     GH_TOKEN: "/vuln-identify/github-token"
+    HF_TOKEN: "/vuln-remediate/huggingface-token"
 
 phases:
   pre_build:
