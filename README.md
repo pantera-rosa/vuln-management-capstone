@@ -137,6 +137,6 @@ print(f"Found {len(df)} vulnerabilities")
 print(f"Risk assessment saved to {paths}")
 
 # Remediation
-remediated_df = generate_remediation(assessed_df, '01-ai/Yi-Coder-1.5B-Chat', 'remediations.parquet', 'repos', True)
+remediated_df = generate_remediation(assessed_df, '01-ai/Yi-Coder-1.5B-Chat', 'remediations.json', 'repos', True)
 print(f"remediations: {remediated_df}")
 ```
