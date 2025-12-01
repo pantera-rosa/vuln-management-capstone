@@ -4,6 +4,8 @@ import torch
 import os
 import time
 import threading
+import json
+import boto3
 
 
 def load_llm(model_id: str, with_quantization: bool = False):
@@ -214,3 +216,66 @@ def invoke_llm_model(model, tokenizer, prompt: str) -> str:
     if elapsed > 0:
         print(f"   📊 Speed: {total_tokens/elapsed:.1f} tokens/sec")
     return info
+
+
+def invoke_bedrock_model(prompt: str, model_id: str = "anthropic.claude-3-5-haiku-20241022-v1:0", region: str = "us-east-1") -> str:
+    """
+    Generate text using Amazon Bedrock (Claude models).
+
+    Args:
+        prompt: Input prompt
+        model_id: Bedrock model ID (default: Claude 3.5 Haiku)
+        region: AWS region (default: us-east-1)
+
+    Returns:
+        str: Generated text
+    """
+    bedrock = boto3.client('bedrock-runtime', region_name=region)
+
+    # Prepare the request for Claude models
+    messages = [
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+
+    request_body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 4096,
+        "messages": messages,
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "system": "You are a cybersecurity engineer who is an expert at fixing vulnerable code."
+    }
+
+    print(f"🤖 Calling Bedrock API ({model_id})...")
+    print(f"   Prompt length: {len(prompt)} characters")
+
+    start_time = time.time()
+
+    try:
+        response = bedrock.invoke_model(
+            modelId=model_id,
+            body=json.dumps(request_body)
+        )
+
+        response_body = json.loads(response['body'].read())
+        elapsed = time.time() - start_time
+
+        # Extract the generated text
+        generated_text = response_body['content'][0]['text']
+
+        # Get token usage stats
+        input_tokens = response_body.get('usage', {}).get('input_tokens', 0)
+        output_tokens = response_body.get('usage', {}).get('output_tokens', 0)
+
+        print(f"   ✅ Generated {output_tokens} tokens ({len(generated_text)} characters) in {elapsed:.1f}s")
+        print(f"   📊 Speed: {output_tokens/elapsed:.1f} tokens/sec")
+        print(f"   💰 Cost: ~${(input_tokens * 0.8 + output_tokens * 4.0) / 1_000_000:.6f}")
+
+        return generated_text
+
+    except Exception as e:
+        print(f"   ❌ Bedrock API error: {e}")
+        raise

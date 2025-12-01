@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from typing import Optional, Dict
 import os
 from pathlib import Path
-from src.backend.utils.llm import load_llm, invoke_llm_model
+from src.backend.utils.llm import load_llm, invoke_llm_model, invoke_bedrock_model
 from src.backend.aws.sagemaker.sagemaker import invoke_sagemaker_endpoint
 import re
 
@@ -24,6 +24,7 @@ def generate_remediation(
     with_quantization: bool = True,
     save_csv: bool = True,
     use_sagemaker: bool = False,
+    use_bedrock: bool = False,
     sagemaker_endpoint_name: Optional[str] = None,
     aws_region: Optional[str] = None,
 ) -> pd.DataFrame:
@@ -38,8 +39,9 @@ def generate_remediation(
         with_quantization (bool): Whether to use 4-bit quantization for the LLM.
         save_csv (bool): Whether to also save results as CSV (default: True).
         use_sagemaker (bool): Whether to use SageMaker endpoint instead of local LLM model.
+        use_bedrock (bool): Whether to use Amazon Bedrock instead of local LLM model (recommended).
         sagemaker_endpoint_name (str, optional): Name of SageMaker endpoint (required if use_sagemaker=True).
-        aws_region (str, optional): AWS region for SageMaker (defaults to us-east-1).
+        aws_region (str, optional): AWS region for SageMaker/Bedrock (defaults to us-east-1).
 
     Returns:
         pd.DataFrame: DataFrame with remediation suggestions added.
@@ -52,11 +54,14 @@ def generate_remediation(
         return pd.read_parquet(output_pd_path)
 
     output_vulns = []
-    
+
     # Load model once if using local LLM (more efficient than loading per vulnerability)
     model = None
     tokenizer = None
-    if not use_sagemaker:
+    if use_bedrock:
+        print(f"🚀 Using Amazon Bedrock: {model_id}")
+        print(f"   Ready for {len(vuln_df)} vulnerabilities")
+    elif not use_sagemaker:
         print(f"📥 Pre-loading local LLM model: {model_id}")
         print(f"   This may take a minute...")
         model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
@@ -109,7 +114,16 @@ def generate_remediation(
                     row, code_snippet_dict
                 )
                 # invoke LLM with prompt to get remediation suggestion
-                if use_sagemaker:
+                if use_bedrock:
+                    print(f"[Bedrock] Generating remediation for {row['cve_id']} ({idx+1}/{len(vuln_df)})")
+                    prompt = _construct_prompt(row, code_snippet_dict)
+                    remediation_suggestion = invoke_bedrock_model(
+                        prompt=prompt,
+                        model_id=model_id,
+                        region=aws_region or "us-east-1",
+                    )
+                    print(f"✅ [Bedrock] Received response for {row['cve_id']}")
+                elif use_sagemaker:
                     print(
                         f"[SageMaker] Calling endpoint for remediation of {row['cve_id']}"
                     )
