@@ -68,6 +68,4 @@ artifacts:
 
 cache:
   paths:
-    - "/tmp/**/*" # Model cache
-    - "/root/.cache/**/*" # pip/huggingface cache
-    - "artifacts/identify/repos/**/*" # Cloned repos
+    - "artifacts/identify/repos/**/*" # Cloned repos (already downloaded from S3, but cache speeds up repeat builds)

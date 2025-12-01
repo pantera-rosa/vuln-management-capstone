@@ -207,7 +207,7 @@ def invoke_llm_model(model, tokenizer, prompt: str) -> str:
 
 def invoke_bedrock_model(
     prompt: str,
-    model_id: str = "anthropic.claude-3-5-haiku-20241022-v1:0",
+    model_id: str = "us.anthropic.claude-3-5-haiku-20241022-v1:0",
     region: str = "us-east-1",
 ) -> str:
     """
@@ -215,7 +215,7 @@ def invoke_bedrock_model(
 
     Args:
         prompt: Input prompt
-        model_id: Bedrock model ID (default: Claude 3.5 Haiku)
+        model_id: Bedrock inference profile ID (default: US Claude 3.5 Haiku)
         region: AWS region (default: us-east-1)
 
     Returns:
