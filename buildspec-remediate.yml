@@ -14,29 +14,20 @@ env:
     GH_TOKEN: "/vuln-identify/github-token"
 
 phases:
-  install:
-    runtime-versions:
-      python: 3.12
-    commands:
-      - echo "Installing dependencies..."
-      - apt-get update -qq
-      - curl -sSL https://install.python-poetry.org | python3 -
-      - export PATH="/root/.local/bin:$PATH"
-      - poetry install --no-root
-      - pip install "transformers>=4.46.0,<5.0.0"
   pre_build:
     commands:
+      - echo "Using ECR image - dependencies pre-installed"
+      - python3 --version
       - git config --global credential.helper store
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
 
   build:
     commands:
       - echo "Starting remediation workflow..."
-      - export PATH="/root/.local/bin:$PATH"
       - export PYTHONPATH="$CODEBUILD_SRC_DIR:$PYTHONPATH"
       - aws sts get-caller-identity
       - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
-      - poetry run python scripts/run_remediation_from_build.py
+      - python3 scripts/run_remediation_from_build.py
 
 artifacts:
   files:
