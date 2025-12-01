@@ -28,7 +28,10 @@ assess:
 	poetry run python -m src.backend.workflow.vuln_assess.assessor --vuln_identify_results_path=artifacts/identify/log4j_semgrep_results_df.parquet --output_dir=artifacts/assessments --display
 
 remediate:
-	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(shell ls -t artifacts/assessments/*.parquet | head -n 1) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.json --sagemaker_endpoint_name=jumpstart-dft-hf-llm-mixtral-8x7b-20251125-220151 --aws_region=us-east-1 --display
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(shell ls -t artifacts/assessments/*.parquet | head -n 1) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.json --display
+
+remediate-sagemaker:
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(shell ls -t artifacts/assessments/*.parquet | head -n 1) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.json --use_sagemaker --sagemaker_endpoint_name=jumpstart-dft-hf-llm-mixtral-8x7b-20251125-220151 --aws_region=us-east-1 --display
 
 pipeline: detect identify assess remediate
 

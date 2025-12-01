@@ -9,12 +9,13 @@ env:
     S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
     S3_ASSESSMENTS_PREFIX: "assessments"
     S3_REMEDIATION_PREFIX: "remediations"
-    MODEL_ID: "meta-llama/Meta-Llama/Meta-Llama-3.1-8B-Instruct"
+    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct"
     USE_4BIT_QUANTIZATION: "true"
     PYTHONUNBUFFERED: "1"
 
   parameter-store:
     GH_TOKEN: "/vuln-identify/github-token"
+    HF_TOKEN: "/vuln-remediate/huggingface-token"
 
 phases:
   pre_build:
