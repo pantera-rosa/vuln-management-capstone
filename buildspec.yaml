@@ -9,8 +9,7 @@ env:
     ENABLE_DATAFLOW_TRACES: "false"
     SEMGREP_NUM_JOBS: "32"
     SEMGREP_TIMEOUT: "300"
-    SEMGREP_MAX_FILE_SIZE: "500000"
-    MAX_REPO_SIZE_MB: "100"
+    SEMGREP_MAX_FILE_SIZE: "1000000"
     PYTHONUNBUFFERED: "1"
   parameter-store:
     GH_TOKEN: "/vuln-identify/github-token"
@@ -20,52 +19,51 @@ phases:
     runtime-versions:
       python: 3.12
     commands:
-      - echo "=== INSTALL PHASE ==="
       - echo "Installing system dependencies..."
       - apt-get update -qq
       - apt-get install -y git curl
-      
       - echo "Installing GitHub CLI..."
       - curl -sSfL https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_amd64.tar.gz -o gh.tar.gz
       - tar -xzf gh.tar.gz
       - mv gh_2.62.0_linux_amd64/bin/gh /usr/local/bin/gh
       - chmod +x /usr/local/bin/gh
-      
       - echo "Installing Poetry..."
       - curl -sSL https://install.python-poetry.org | python3 -
       - export PATH="/root/.local/bin:$PATH"
-      
-      - echo "Resources - CPU:" $(nproc) "Memory:" $(free -h | grep Mem | awk '{print $2}')
+      - poetry --version
   
   pre_build:
     commands:
-      - echo "=== PRE-BUILD PHASE ==="
-      - echo "Source code is already cloned by CodeBuild"
-      - echo "Current directory:" $(pwd)
-      - ls -la
-      
       - echo "Installing Python dependencies..."
       - export PATH="/root/.local/bin:$PATH"
       - poetry install --no-root
       - poetry run pip install semgrep==1.99.0
-      
-      - echo "Configuring GitHub authentication for forking repos..."
+      - echo "Configuring GitHub authentication..."
       - git config --global credential.helper store
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
-      
       - echo "Verifying AWS access..."
       - aws sts get-caller-identity
   
   build:
     commands:
-      - echo "=== BUILD PHASE ==="
       - echo "Starting vulnerability identification workflow..."
       - export PATH="/root/.local/bin:$PATH"
       - export PYTHONPATH="$(pwd):$PYTHONPATH"
-      - poetry run python -u src/backend/workflow/vuln_identify/batch_job.py
+      - |
+        cat > /tmp/run_vuln_identify.sh << 'SCRIPT_EOF'
+        #!/bin/bash
+        set -e
+        poetry run python -u src/backend/workflow/vuln_identify/vuln_code_identify.py \
+          --s3-bucket vg-vuln-scan-artifacts-20251016215106 \
+          --s3-input-prefix scans \
+          --s3-output-prefix identifications \
+          --semgrep-jobs 32 \
+          --semgrep-timeout 300 \
+          --max-file-size 1000000
+        SCRIPT_EOF
+      - chmod +x /tmp/run_vuln_identify.sh
+      - bash /tmp/run_vuln_identify.sh
   
   post_build:
     commands:
-      - echo "=== POST-BUILD PHASE ==="
-      - echo "Build completed at $(date)"
-      - echo "Results: s3://$S3_BUCKET/$S3_OUTPUT_PREFIX/"
+      - echo "Build completed"
