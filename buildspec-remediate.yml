@@ -1,5 +1,8 @@
 version: 0.2
 
+# Use ECR image (set this in CodeBuild project settings or via environment variable)
+# image: <your-account-id>.dkr.ecr.us-east-1.amazonaws.com/vuln-remediate:latest
+
 env:
   variables:
     AWS_DEFAULT_REGION: "us-east-1"
@@ -16,8 +19,7 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "Using ECR image - dependencies pre-installed"
-      - python3 --version
+      - echo "Using ECR image - dependencies already installed"
       - git config --global credential.helper store
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - echo "Installing AWS CLI..."
@@ -25,6 +27,10 @@ phases:
       - unzip -q awscliv2.zip
       - ./aws/install
       - aws --version
+      - echo "Verifying environment..."
+      - python3 --version
+      - poetry --version || echo "Poetry not in PATH (expected if using ECR image)"
+      - gh --version || echo "GitHub CLI not found"
 
   build:
     commands:
