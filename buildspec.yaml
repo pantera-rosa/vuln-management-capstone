@@ -31,7 +31,7 @@ phases:
       - curl -sSL https://install.python-poetry.org | python3 -
       - export PATH="/root/.local/bin:$PATH"
       - poetry --version
-  
+
   pre_build:
     commands:
       - echo "Installing Python dependencies..."
@@ -43,7 +43,7 @@ phases:
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - echo "Verifying AWS access..."
       - aws sts get-caller-identity
-  
+
   build:
     commands:
       - echo "Starting vulnerability identification workflow..."
@@ -63,7 +63,15 @@ phases:
         SCRIPT_EOF
       - chmod +x /tmp/run_vuln_identify.sh
       - bash /tmp/run_vuln_identify.sh
-  
+
   post_build:
     commands:
       - echo "Build completed"
+      - echo "Uploading cloned repos to S3..."
+      - |
+        if [ -d "/tmp/repos" ] && [ "$(ls -A /tmp/repos)" ]; then
+          aws s3 sync /tmp/repos/ s3://${S3_BUCKET}/identify/repos/ --delete --quiet
+          echo "Uploaded repos to s3://${S3_BUCKET}/identify/repos/"
+        else
+          echo "No repos directory found or empty, skipping upload"
+        fi
