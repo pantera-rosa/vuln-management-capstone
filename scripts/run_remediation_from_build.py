@@ -41,6 +41,9 @@ def main() -> None:
     assessment_stem = Path(latest_assessment).stem
     output_parquet = str(output_dir / f"remediation_{assessment_stem}.parquet")
 
+    # Check if Bedrock should be used (via environment variable)
+    use_bedrock = os.environ.get("USE_BEDROCK", "false").lower() == "true"
+
     remediated_df = generate_remediation(
         vuln_df=df,
         model_id=model_id,
@@ -48,6 +51,7 @@ def main() -> None:
         dep_repos_root_dir_path="./artifacts/identify/repos",
         with_quantization=use_4bit,
         use_sagemaker=False,
+        use_bedrock=use_bedrock,
         sagemaker_endpoint_name=None,
         aws_region=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
     )

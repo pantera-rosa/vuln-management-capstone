@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from typing import Optional, Dict
 import os
 from pathlib import Path
-from src.backend.utils.llm import load_llm, invoke_llm_model
+from src.backend.utils.llm import load_llm, invoke_llm_model, invoke_bedrock_model
 from src.backend.aws.sagemaker.sagemaker import invoke_sagemaker_endpoint
 import re
 
@@ -24,6 +24,7 @@ def generate_remediation(
     with_quantization: bool = True,
     save_csv: bool = True,
     use_sagemaker: bool = False,
+    use_bedrock: bool = False,
     sagemaker_endpoint_name: Optional[str] = None,
     aws_region: Optional[str] = None,
 ) -> pd.DataFrame:
@@ -38,8 +39,9 @@ def generate_remediation(
         with_quantization (bool): Whether to use 4-bit quantization for the LLM.
         save_csv (bool): Whether to also save results as CSV (default: True).
         use_sagemaker (bool): Whether to use SageMaker endpoint instead of local LLM model.
+        use_bedrock (bool): Whether to use Amazon Bedrock instead of local LLM model (recommended).
         sagemaker_endpoint_name (str, optional): Name of SageMaker endpoint (required if use_sagemaker=True).
-        aws_region (str, optional): AWS region for SageMaker (defaults to us-east-1).
+        aws_region (str, optional): AWS region for SageMaker/Bedrock (defaults to us-east-1).
 
     Returns:
         pd.DataFrame: DataFrame with remediation suggestions added.
@@ -52,15 +54,18 @@ def generate_remediation(
         return pd.read_parquet(output_pd_path)
 
     output_vulns = []
-    
+
     # Load model once if using local LLM (more efficient than loading per vulnerability)
     model = None
     tokenizer = None
-    if not use_sagemaker:
-        print(f"📥 Pre-loading local LLM model: {model_id}")
-        print(f"   This may take a minute...")
+    if use_bedrock:
+        print(f"Using Amazon Bedrock: {model_id}")
+        print(f"Ready for {len(vuln_df)} vulnerabilities")
+    elif not use_sagemaker:
+        print(f"Pre-loading local LLM model: {model_id}")
+        print(f"This takes about 30 minutes on Codebuild...")
         model, tokenizer = load_llm(model_id, with_quantization=with_quantization)
-        print(f"   ✅ Model loaded and ready for {len(vuln_df)} vulnerabilities")
+        print(f"   Model loaded and ready for {len(vuln_df)} vulnerabilities")
 
     # iterate through vulnerabilities to generate remediation suggestions
     for idx, row in vuln_df.iterrows():
@@ -73,10 +78,8 @@ def generate_remediation(
                 f"Upgrade {row['package_name']} from existing vulnerable version {row['package_version']} to fixed version {row['fixed_version']}."
             )
         elif row["source_code_location"] and row["path"]:
-            # extract repo name from github url
             repo_name = row["source_code_location"].split("/")[-1]
 
-            # ensure Vuln-Guard organization personal access token is provided in env vars so that gh CLI can be invoked successfully
             if not GH_TOKEN:
                 raise ValueError(
                     "GH_TOKEN environment variable not set. Cannot authenticate with GitHub CLI. Please set GH_TOKEN to a valid GitHub personal access token with appropriate permissions."
@@ -90,7 +93,6 @@ def generate_remediation(
             portion = Path(*file_path_parts[start_index:])
             path = os.path.join(dep_repos_root_dir_path, str(portion))
 
-            # extract vulnerable code snippet if available
             code_snippet_dict = _extract_code_snippet(
                 path,
                 row["extra_lines"],
@@ -109,7 +111,18 @@ def generate_remediation(
                     row, code_snippet_dict
                 )
                 # invoke LLM with prompt to get remediation suggestion
-                if use_sagemaker:
+                if use_bedrock:
+                    print(
+                        f"[Bedrock] Generating remediation for {row['cve_id']} ({idx+1}/{len(vuln_df)})"
+                    )
+                    prompt = _construct_prompt(row, code_snippet_dict)
+                    remediation_suggestion = invoke_bedrock_model(
+                        prompt=prompt,
+                        model_id=model_id,
+                        region=aws_region or "us-east-1",
+                    )
+                    print(f"[Bedrock] Received response for {row['cve_id']}")
+                elif use_sagemaker:
                     print(
                         f"[SageMaker] Calling endpoint for remediation of {row['cve_id']}"
                     )
@@ -130,7 +143,9 @@ def generate_remediation(
                     print(f"✅ [SageMaker] Received response for {row['cve_id']}")
                 else:
                     # use local LLM model (already loaded above)
-                    print(f"[Local LLM] Generating remediation for {row['cve_id']} ({idx+1}/{len(vuln_df)})")
+                    print(
+                        f"[Local LLM] Generating remediation for {row['cve_id']} ({idx+1}/{len(vuln_df)})"
+                    )
                     # if code context is empty, use local llm to extract code context
                     if not code_snippet_dict.get("code_context"):
                         code_snippet_dict = _extract_code_context(
