@@ -121,7 +121,7 @@ class ProgressLogger:
         """Print periodic progress updates every 5 seconds"""
         while self.running:
             elapsed = time.time() - self.start_time
-=            if elapsed - self.last_log_time >= 5:
+            if elapsed - self.last_log_time >= 5:
                 print(
                     f"\r   ⏳ Still generating... ({elapsed:.0f}s elapsed)",
                     end="",
@@ -199,9 +199,7 @@ def invoke_llm_model(model, tokenizer, prompt: str) -> str:
         outputs[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True
     )
 
-    print(
-        f"Generated {total_tokens} tokens ({len(info)} characters) in {elapsed:.1f}s"
-    )
+    print(f"Generated {total_tokens} tokens ({len(info)} characters) in {elapsed:.1f}s")
     if elapsed > 0:
         print(f"   📊 Speed: {total_tokens/elapsed:.1f} tokens/sec")
     return info
@@ -256,9 +254,7 @@ def invoke_bedrock_model(
             f"Generated {output_tokens} tokens ({len(generated_text)} characters) in {elapsed:.1f}s"
         )
         print(f"Speed: {output_tokens/elapsed:.1f} tokens/sec")
-        print(
-            f"Cost: ~${(input_tokens * 0.8 + output_tokens * 4.0) / 1_000_000:.6f}"
-        )
+        print(f"Cost: ~${(input_tokens * 0.8 + output_tokens * 4.0) / 1_000_000:.6f}")
 
         return generated_text
 
