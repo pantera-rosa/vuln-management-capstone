@@ -9,7 +9,7 @@ env:
     S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
     S3_ASSESSMENTS_PREFIX: "assessments"
     S3_REMEDIATION_PREFIX: "remediations"
-    MODEL_ID: "meta-llama/Meta-Llama/Meta-Llama-3.1-8B-Instruct"
+    MODEL_ID: "meta-llama/Meta-Llama-3.1-8B-Instruct"
     USE_4BIT_QUANTIZATION: "true"
     PYTHONUNBUFFERED: "1"
 
@@ -22,20 +22,7 @@ phases:
       - echo "Using ECR image - dependencies already installed"
       - git config --global credential.helper store
       - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - echo "Installing AWS CLI..."
-      - |
-        if ! command -v aws &> /dev/null; then
-          apt-get update -qq
-          apt-get install -y unzip
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip -o -q awscliv2.zip
-          ./aws/install
-          rm -rf awscliv2.zip aws
-          echo "AWS CLI installed successfully"
-        else
-          echo "AWS CLI already installed"
-        fi
-      - aws --version
+      - aws --version || echo "AWS CLI check"
       - echo "Verifying environment..."
       - python3 --version
       - poetry --version || echo "Poetry not in PATH (expected if using ECR image)"
