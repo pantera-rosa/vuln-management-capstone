@@ -61,16 +61,20 @@ def lambda_handler(event, context):
         if not STATE_MACHINE_ARN:
             raise ValueError("STATE_MACHINE_ARN environment variable is not set")
 
+        # Get S3 bucket from environment variable
+        s3_bucket = os.environ.get('S3_BUCKET')
+        if not s3_bucket:
+            raise ValueError("S3_BUCKET environment variable is not set")
+
         # Create execution name with timestamp
         timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
-        execution_name = f"workflow-{timestamp}"
+        execution_name = f"scan-Vuln-Guard-logging-log4j1-{timestamp}"
 
         # Hardcoded input for Step Functions
-        # You can customize this based on your Step Functions definition
+        # Format must match: {"repo_url": "...", "s3_bucket": "..."}
         step_function_input = {
-            "repo_url": "https://github.com/apache/logging-log4j1.git",
-            "repo_name": "logging-log4j1",
-            "timestamp": timestamp
+            "repo_url": "https://github.com/Vuln-Guard/logging-log4j1",
+            "s3_bucket": s3_bucket
         }
 
         # Start Step Functions execution
