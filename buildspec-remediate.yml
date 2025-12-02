@@ -9,7 +9,7 @@ env:
     S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
     S3_ASSESSMENTS_PREFIX: "assessments"
     S3_REMEDIATION_PREFIX: "remediations"
-    MODEL_ID: "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+    MODEL_ID: "us.meta.llama3-3-70b-instruct-v1:0"
     USE_BEDROCK: "true"
     USE_4BIT_QUANTIZATION: "false"
     PYTHONUNBUFFERED: "1"
