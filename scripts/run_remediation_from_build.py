@@ -18,14 +18,17 @@ def main() -> None:
 
     s3 = boto3.client("s3")
 
-    # Find the most recent assessment object under the prefix
+    # Find the most recent assessment Parquet file under the prefix
     prefix = assessments_prefix.rstrip("/") + "/"
     resp = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
     contents = resp.get("Contents", [])
-    if not contents:
-        raise RuntimeError(f"No assessment objects found under s3://{bucket}/{prefix}")
 
-    latest_obj = max(contents, key=lambda o: o["LastModified"])
+    # Filter for .parquet files only
+    parquet_files = [obj for obj in contents if obj["Key"].endswith(".parquet")]
+    if not parquet_files:
+        raise RuntimeError(f"No Parquet assessment files found under s3://{bucket}/{prefix}")
+
+    latest_obj = max(parquet_files, key=lambda o: o["LastModified"])
     latest_assessment = latest_obj["Key"]
 
     print(f"Bucket={bucket}, latest_assessment={latest_assessment}")
