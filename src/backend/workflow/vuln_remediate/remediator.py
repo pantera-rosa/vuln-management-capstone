@@ -63,11 +63,11 @@ if __name__ == "__main__":
     parser.add_argument("--vuln_results_path", type=str, required=True, help="Path to the Parquet file containing vulnerability results from previous stages of the workflow.")
     parser.add_argument("--dep_repos_root_dir_path", type=str, required=True, help="Path to the root directory where the unfixed vulnerable OSS dependency repositories are cloned.")
     parser.add_argument("--model_id", type=str, required=True, help="Model id for LLM to use in remediation generation (e.g. 01-ai/Yi-Coder-1.5B-Chat).")
-    parser.add_argument("--with_quantization", type=bool, default=False, help=" (optional) If set, the specified LLM is loaded with 4-bit quantization.")
-    parser.add_argument("--output_pd_path", type=str, required=True, help="Path to save the final vulnerability code remediation results in Parquet format.")
-    parser.add_argument("--display", type=bool, default=False, help=" (optional) If set, display the final vulnerability code remediation dataframe to stdout after processing.")
-    parser.add_argument("--save_csv", type=bool, default=True, help=" (optional) If set, also save results as CSV alongside Parquet file.")
-    parser.add_argument("--use_sagemaker", type=bool, default=False, help=" (optional) If set, use SageMaker endpoint instead of local LLM model.")
+    parser.add_argument("--with_quantization", action='store_true', help=" (optional) If set, the specified LLM is loaded with 4-bit quantization.")
+    parser.add_argument("--output_pd_path", type=str, required=True, help="Path to save the final vulnerability code remediation results in JSON format.")
+    parser.add_argument("--display", action='store_true', help=" (optional) If set, display the final vulnerability code remediation dataframe to stdout after processing.")
+    parser.add_argument("--save_csv", action='store_true', help=" (optional) If set, also save results as CSV alongside JSON file.")
+    parser.add_argument("--use_sagemaker", action='store_true', help=" (optional) If set, use SageMaker endpoint instead of local LLM model.")
     parser.add_argument("--sagemaker_endpoint_name", type=str, default=None, help=" (optional) Name of the SageMaker endpoint to use (required if --use_sagemaker is True).")
     parser.add_argument("--aws_region", type=str, default="us-east-1", help=" (optional) AWS region for SageMaker endpoint (default: us-east-1).")
 
@@ -80,12 +80,12 @@ if __name__ == "__main__":
     remediate_vulns(
         items=vuln_results,
         model_id=args.model_id,
-        with_quantization=bool(args.with_quantization),
+        with_quantization=args.with_quantization,
         output_pd_path=args.output_pd_path,
         dep_repos_root_dir_path=args.dep_repos_root_dir_path,
-        display=bool(args.display),
-        save_csv=bool(args.save_csv),
-        use_sagemaker=bool(args.use_sagemaker),
+        display=args.display,
+        save_csv=args.save_csv,
+        use_sagemaker=args.use_sagemaker,
         sagemaker_endpoint_name=args.sagemaker_endpoint_name,
         aws_region=args.aws_region
     )

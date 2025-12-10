@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--sbom_path", type=str, required=True, help="If dir_path is provided, this is the path to save the extracted SBOM. Else, the program will expect an SBOM file located at this path and will use it for scanning. Should end with .spdx.json.")
     parser.add_argument("--output_raw_scan_path", type=str, help="(optional) JSON path to save the raw vulnerability scan results.")
     parser.add_argument("--output_final_scan_path", type=str, required=True, help="Parquet path to save the final vulnerability scan results.")
-    parser.add_argument("--display", type=bool, default=False, help=" (optional) If set, display the final vulnerability scan dataframe to stdout after processing.")
+    parser.add_argument("--display", action='store_true', help=" (optional) If set, display the final vulnerability scan dataframe to stdout after processing.")
 
     args = parser.parse_args()
 
@@ -62,5 +62,5 @@ if __name__ == "__main__":
         sbom_path=args.sbom_path,
         output_raw_scan_path=args.output_raw_scan_path,
         output_final_scan_path=args.output_final_scan_path,
-        display=bool(args.display),
+        display=args.display,
     )

@@ -19,21 +19,19 @@ scan:
 	poetry run python -c "from src.backend.workflow.vuln_detect.vuln_scan import perform_vuln_scan; perform_vuln_scan('artifacts/detect/log4j_sbom.spdx.json', output_scan_path='artifacts/detect/log4j_grype_scan.json', output_pd_path='artifacts/detect/log4j_grype_scan_df.parquet')"
 
 detect:
-	poetry run python -m src.backend.workflow.vuln_detect.detector --repo_url=https://github.com/apache/logging-log4j1.git --dir_path=artifacts/detect/repos/log4j --sbom_path=artifacts/detect/log4j_sbom.spdx.json --output_raw_scan_path=artifacts/detect/log4j_grype_scan.json --output_final_scan_path=artifacts/detect/log4j_grype_scan_df.parquet --display=True
+	poetry run python -m src.backend.workflow.vuln_detect.detector --repo_url=https://github.com/apache/logging-log4j1.git --dir_path=artifacts/detect/repos/log4j --sbom_path=artifacts/detect/log4j_sbom.spdx.json --output_raw_scan_path=artifacts/detect/log4j_grype_scan.json --output_final_scan_path=artifacts/detect/log4j_grype_scan_df.parquet --display
 
 identify:
-	poetry run python -m src.backend.workflow.vuln_identify.identifier --vuln_scan_results_path=artifacts/detect/log4j_grype_scan_df.parquet --dep_repos_root_dir_path=artifacts/identify/repos --output_raw_scans_dir_path=artifacts/identify/semgrep_scans --output_final_scans_dir_path=artifacts/identify/semgrep_scans --output_pd_path=artifacts/identify/log4j_semgrep_results_df.parquet --display=True
+	poetry run python -m src.backend.workflow.vuln_identify.identifier --vuln_scan_results_path=artifacts/detect/log4j_grype_scan_df.parquet --dep_repos_root_dir_path=artifacts/identify/repos --output_raw_scans_dir_path=artifacts/identify/semgrep_scans --output_final_scans_dir_path=artifacts/identify/semgrep_scans --output_pd_path=artifacts/identify/log4j_semgrep_results_df.parquet --display
 
 assess:
-	poetry run python -c "from src.backend.workflow.vuln_assess.assessor import assess_vulns_df_and_save; from src.backend.schemas.models import VulnCodeIdentification; import pandas as pd; import numpy as np; df=pd.read_parquet('artifacts/identify/log4j_semgrep_results_df.parquet'); df=df.replace({np.nan: None}); vulns=[VulnCodeIdentification(**row) for row in df.to_dict('records')]; assess_vulns_df_and_save(vulns, 'artifacts/assessments')"
+	poetry run python -m src.backend.workflow.vuln_assess.assessor --vuln_identify_results_path=artifacts/identify/log4j_semgrep_results_df.parquet --output_dir=artifacts/assessments --display
 
-ASSESS_DIR:= artifacts/assessments
-LATEST_ASSESS_FILE:= $(shell ls -t $(ASSESS_DIR)/*.parquet | head -n 1)
 remediate:
-	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(LATEST_ASSESS_FILE) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.parquet --aws_region=us-east-1 --display=True
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(shell ls -t artifacts/assessments/*.parquet | head -n 1) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.json --display
 
 remediate-sagemaker:
-	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(LATEST_ASSESS_FILE) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.parquet --use_sagemaker=True --sagemaker_endpoint_name=jumpstart-dft-hf-llm-mixtral-8x7b-20251125-220151 --aws_region=us-east-1 --display=True
+	poetry run python -m src.backend.workflow.vuln_remediate.remediator --vuln_results_path=$(shell ls -t artifacts/assessments/*.parquet | head -n 1) --dep_repos_root_dir_path=artifacts/identify/repos --model_id=01-ai/Yi-Coder-1.5B-Chat --output_pd_path=artifacts/remediate/log4j_remediate_pd.json --use_sagemaker --sagemaker_endpoint_name=jumpstart-dft-hf-llm-mixtral-8x7b-20251125-220151 --aws_region=us-east-1 --display
 
 pipeline: detect identify assess remediate
 

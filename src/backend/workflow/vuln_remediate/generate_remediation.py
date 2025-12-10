@@ -34,7 +34,7 @@ def generate_remediation(
     Args:
         vuln_df (pd.DataFrame): DataFrame containing vulnerability assessments.
         model_id (str): Model ID for LLM to use in remediation generation.
-        output_pd_path (str): Path to save the output DataFrame with remediation suggestions in Parquet format.
+        output_pd_path (str): Path to save the output DataFrame with remediation suggestions in JSON format.
         dep_repos_root_dir_path (str): Root directory path for dependency repositories.
         with_quantization (bool): Whether to use 4-bit quantization for the LLM.
         save_csv (bool): Whether to also save results as CSV (default: True).
@@ -51,7 +51,7 @@ def generate_remediation(
         print(
             f"Vulnerability code remediation dataframe file {output_pd_path} already exists and is non-empty. Skipping vulnerability code remediation."
         )
-        return pd.read_parquet(output_pd_path)
+        return pd.read_json(output_pd_path)
 
     output_vulns = []
 
@@ -195,13 +195,13 @@ def generate_remediation(
 
     output_df = pd.DataFrame(output_vulns)
 
-    # save pandas dataframe to output_pd_path (parquet)
-    save_df(output_df, output_pd_path)
-    print(f"Saved remediation results to Parquet path: {output_pd_path}")
+    # save pandas dataframe to output_pd_path (json)
+    save_df(output_df, output_pd_path, format="json")
+    print(f"Saved remediation results to JSON path: {output_pd_path}")
 
     # also save as CSV if requested
     if save_csv:
-        csv_path = output_pd_path.replace(".parquet", ".csv")
+        csv_path = output_pd_path.replace(".json", ".csv")
         save_df(output_df, csv_path, format="csv")
         print(f"Remediation results also saved to CSV path: {csv_path}")
 
@@ -416,6 +416,8 @@ def _extract_java_code_context_manual(
     code_snippet_dict["code_context"] = "\n".join(
         lines[method_start_index : method_end_index + 1]
     )
+
+    print("successfully extracted java code context manually.")
     return code_snippet_dict
 
 

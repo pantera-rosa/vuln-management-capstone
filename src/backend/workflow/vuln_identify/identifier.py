@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_raw_scans_dir_path", type=str, help="(optional) Directory path to save individual vulnerability code identification scan results.")
     parser.add_argument("--output_final_scans_dir_path", type=str, required=True, help="Directory path to save individual vulnerability code identification scan results in Parquet format.")
     parser.add_argument("--output_pd_path", type=str, required=True, help="Path to save the final vulnerability code identification results in Parquet format.")
-    parser.add_argument("--display", type=bool, default=False, help=" (optional) If set, display the final vulnerability code identification dataframe to stdout after processing.")
+    parser.add_argument("--display", action='store_true', help=" (optional) If set, display the final vulnerability code identification dataframe to stdout after processing.")
     
     args = parser.parse_args()
 
@@ -56,5 +56,5 @@ if __name__ == "__main__":
         output_scans_dir_path=args.output_raw_scans_dir_path,
         output_scans_pd_dir_path=args.output_final_scans_dir_path,
         output_pd_path=args.output_pd_path,
-        display=bool(args.display)
+        display=args.display
     )
