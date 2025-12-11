@@ -29,12 +29,11 @@ COPY src/backend/schemas/models.py ./src/backend/schemas/
 COPY src/backend/workflow/vuln_identify/identifier.py ./src/backend/workflow/vuln_identify/
 
 FROM python:3.13-slim AS run
-# install run dependencies
+# install run dependencies (removed build-essential and libffi-dev - not needed at runtime)
 RUN apt-get update \
-    && apt-get install -y git \
+    && apt-get install -y --no-install-recommends \
+         git \
          curl \
-         build-essential \
-         libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 # set working directory
 WORKDIR /vuln_identify

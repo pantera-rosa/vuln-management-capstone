@@ -27,8 +27,8 @@ ENV POETRY_NO_INTERACTION=1
 COPY poetry.lock pyproject.toml ./
 
 # Install dependencies with CPU-only PyTorch (HUGE space savings: ~2GB -> ~200MB)
-# First install without torch, then install CPU-only torch
-RUN poetry install --only main --no-root --no-ansi \
+# Install main deps + remediate group, then replace torch with CPU-only version
+RUN poetry install --only main --with remediate --no-root --no-ansi \
     && .venv/bin/pip uninstall -y torch \
     && .venv/bin/pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
     && find /vuln_remediate/.venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true \

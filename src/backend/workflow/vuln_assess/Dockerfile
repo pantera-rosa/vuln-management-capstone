@@ -31,12 +31,11 @@ COPY src/backend/schemas/models.py ./src/backend/schemas/
 # Runtime stage
 # -----------------------------
 FROM python:3.13-slim AS run
-# Minimal runtime deps (no compiler toolchain here)
+# Minimal runtime deps (removed build-essential and libffi-dev - not needed at runtime)
 RUN apt-get update \
-    && apt-get install -y git \
+    && apt-get install -y --no-install-recommends \
+         git \
          curl \
-         build-essential \
-         libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /vuln_assess
 # Use the build-stage virtualenv
