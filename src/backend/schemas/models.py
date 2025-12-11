@@ -1,17 +1,17 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, Field
 from typing import Dict
 
 
 # 👇 This is the detector output you provided
 class VulnScan(BaseModel):
-    cve_id: str  # CVE ID
-    ghsa_id: str  # GHSA ID
+    cve_id: Optional[str] = None  # CVE ID
+    ghsa_id: Optional[str] = None  # GHSA ID
     severity: Optional[str] = None
-    related_vuln_datasource: str
-    language: str
-    package_name: str
-    package_version: str
+    related_vuln_datasource: Optional[str] = None
+    language: Optional[str] = None
+    package_name: Optional[str] = None
+    package_version: Optional[str] = None
     fixed_version: Optional[str] = None
     cvss_v2_score: Optional[str] = None
     cvss_v2_version: Optional[str] = None
@@ -30,12 +30,18 @@ class VulnScan(BaseModel):
     cvss_v4_impact_score: Optional[float] = None
     epss_score: Optional[float] = None
     epss_percentile: Optional[float] = None
-    summary: str
-    description: str
-    references: List[str]
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    references: List[str] = Field(default_factory=list)  # Empty list if no references
     source_code_location: Optional[str] = None
     cwe_id: Optional[str] = None
     cwe_name: Optional[str] = None
+
+    @field_validator('references', mode='before')
+    @classmethod
+    def validate_references(cls, v):
+        """Convert None to empty list for references field"""
+        return v if v is not None else []
 
 class VulnCodeIdentification(VulnScan):
     # FIXED: Removed trailing commas that were creating tuples
@@ -70,9 +76,9 @@ class VulnAssessment(VulnCodeIdentification):
 
 # 👇 Remediation items returned by the remediate step
 class Remediation(BaseModel):
-    cve_id: str
-    package_name: str
-    package_version: str
+    cve_id: Optional[str] = None
+    package_name: Optional[str] = None
+    package_version: Optional[str] = None
     recommendation: Optional[str] = None
     remediation_github_url: Optional[str] = None
 

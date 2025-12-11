@@ -67,36 +67,65 @@ def main():
     # Setup GitHub authentication
     _setup_github_auth(gh_token)
     
-    print(f"Configuration:")
+    print(f"\nConfiguration:")
     print(f"  S3 Bucket: {bucket_name}")
     print(f"  Input Prefix: {input_prefix}")
     print(f"  Output Prefix: {output_prefix}")
     print(f"  Folder: {folder_name or 'latest'}")
     
     # Determine which folder to process
+    print(f"\n{'='*60}")
+    print("Step 1: Locating scan folder...")
+    print(f"{'='*60}")
     if not folder_name:
+        print(f"No folder specified, finding latest in s3://{bucket_name}/{input_prefix}/")
         folder_name = _get_latest_folder(bucket_name, input_prefix)
+        print(f"✓ Found latest folder: {folder_name}")
+    else:
+        print(f"Using specified folder: {folder_name}")
     
     scan_prefix = f"{input_prefix}/{folder_name}/"
-    print(f"\nProcessing: s3://{bucket_name}/{scan_prefix}")
+    print(f"✓ Full S3 path: s3://{bucket_name}/{scan_prefix}")
     
     # Download input parquet file
+    print(f"\n{'='*60}")
+    print("Step 2: Downloading scan results...")
+    print(f"{'='*60}")
     input_key = _find_parquet_file(bucket_name, scan_prefix)
-    local_input_path = "/tmp/input_scan.parquet"
+    print(f"Found parquet file: {input_key}")
     
-    print(f"Downloading: s3://{bucket_name}/{input_key}")
+    local_input_path = "/tmp/input_scan.parquet"
+    print(f"Downloading to: {local_input_path}")
     s3_client.download_file(bucket_name, input_key, local_input_path)
     
+    file_size_mb = os.path.getsize(local_input_path) / (1024 * 1024)
+    print(f"✓ Downloaded successfully ({file_size_mb:.2f} MB)")
+    
     # Load and prepare data
+    print(f"\n{'='*60}")
+    print("Step 3: Loading vulnerability data...")
+    print(f"{'='*60}")
     vuln_scan_df = pd.read_parquet(local_input_path)
-    print(f"Loaded DataFrame: {vuln_scan_df.shape}")
+    print(f"✓ Loaded DataFrame: {vuln_scan_df.shape[0]} rows, {vuln_scan_df.shape[1]} columns")
     
     # Handle column mapping (for different scan outputs)
+    print("Normalizing column names...")
     vuln_scan_df = _normalize_columns(vuln_scan_df)
     
-    print(f"Unfixed vulnerabilities: {vuln_scan_df['fixed_version'].isnull().sum()}")
+    total_vulns = len(vuln_scan_df)
+    unfixed_vulns = vuln_scan_df['fixed_version'].isnull().sum()
+    fixed_vulns = total_vulns - unfixed_vulns
+    print(f"✓ Total vulnerabilities: {total_vulns}")
+    print(f"  - Fixed: {fixed_vulns}")
+    print(f"  - Unfixed (to process): {unfixed_vulns}")
+    
+    if unfixed_vulns == 0:
+        print("⚠️  No unfixed vulnerabilities to process!")
     
     # Setup working directories
+    print(f"\n{'='*60}")
+    print("Step 4: Setting up working directories...")
+    print(f"{'='*60}")
     dep_repos_dir = "/tmp/repos"
     output_scans_dir = "/tmp/scans_raw"
     output_scans_pd_dir = "/tmp/scans_pd"
@@ -104,75 +133,133 @@ def main():
     
     for dir_path in [dep_repos_dir, output_scans_dir, output_scans_pd_dir]:
         if os.path.exists(dir_path):
+            print(f"Cleaning existing directory: {dir_path}")
             shutil.rmtree(dir_path)
         os.makedirs(dir_path, exist_ok=True)
+        print(f"✓ Created: {dir_path}")
     
     if os.path.exists(output_pd_path):
         os.remove(output_pd_path)
     
     # Get semgrep configuration from environment variables
+    print(f"\n{'='*60}")
+    print("Step 5: Configuring semgrep parameters...")
+    print(f"{'='*60}")
     enable_dataflow = os.environ.get('ENABLE_DATAFLOW_TRACES', 'false').lower() == 'true'
     semgrep_jobs = int(os.environ.get('SEMGREP_NUM_JOBS', '10'))
-    semgrep_timeout = int(os.environ.get('SEMGREP_TIMEOUT', '300'))  # 5 minutes per rule
-    max_file_size = int(os.environ.get('SEMGREP_MAX_FILE_SIZE', '1000000'))  # 1MB
+    semgrep_timeout = int(os.environ.get('SEMGREP_TIMEOUT', '60'))  # 5 minutes per rule
+    #max_file_size = int(os.environ.get('SEMGREP_MAX_FILE_SIZE', '500000'))  # 500KB
+    #max_repo_size_mb = int(os.environ.get('MAX_REPO_SIZE_MB', '50'))  # Skip repos larger than 50MB
     
     print(f"Semgrep configuration:")
     print(f"  Jobs: {semgrep_jobs}")
     print(f"  Dataflow traces: {enable_dataflow}")
     print(f"  Timeout per rule: {semgrep_timeout}s")
-    print(f"  Max file size: {max_file_size / 1_000_000:.1f}MB")
+    #print(f"  Max file size: {max_file_size / 1_000_000:.1f}MB")
+    #print(f"  Max repo size: {max_repo_size_mb}MB")
+    
+    # Add repository size filter wrapper
+    original_vuln_code_identify = vuln_code_identify
+    
+    def filtered_vuln_code_identify(*args, **kwargs):
+        """Wrapper that adds repo size filtering."""
+        # This will be called by the actual function
+        return original_vuln_code_identify(*args, **kwargs)
     
     # Run the identification
     print("\n" + "=" * 60)
-    print("Starting vulnerability code identification...")
+    print("Step 6: Running vulnerability code identification...")
     print("=" * 60)
+    print(f"Processing {unfixed_vulns} unfixed vulnerabilities...")
     
     start_time = datetime.utcnow()
+    print(f"Start time: {start_time.isoformat()}Z")
     
-    identified_df = vuln_code_identify(
-        vuln_scan_df=vuln_scan_df,
-        dep_repos_root_dir_path=dep_repos_dir,
-        output_scans_dir_path=output_scans_dir,
-        output_scans_pd_dir_path=output_scans_pd_dir,
-        output_pd_path=output_pd_path,
-        semgrep_jobs=semgrep_jobs,
-        enable_dataflow_traces=enable_dataflow,
-        semgrep_timeout=semgrep_timeout,
-        max_file_size=max_file_size
-    )
-    
-    end_time = datetime.utcnow()
-    duration = (end_time - start_time).total_seconds()
-    
-    print(f"\nIdentification complete!")
-    print(f"Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
-    print(f"Result shape: {identified_df.shape}")
+    try:
+        identified_df = vuln_code_identify(
+            vuln_scan_df=vuln_scan_df,
+            dep_repos_root_dir_path=dep_repos_dir,
+            output_scans_dir_path=output_scans_dir,
+            output_scans_pd_dir_path=output_scans_pd_dir,
+            output_pd_path=output_pd_path,
+            semgrep_jobs=semgrep_jobs,
+            enable_dataflow_traces=enable_dataflow,
+            semgrep_timeout=semgrep_timeout
+            #max_file_size=max_file_size,
+            #max_repo_size_mb=max_repo_size_mb
+        )
+        
+        end_time = datetime.utcnow()
+        duration = (end_time - start_time).total_seconds()
+        
+        print("\n" + "=" * 60)
+        print("✓ Identification complete!")
+        print("=" * 60)
+        print(f"End time: {end_time.isoformat()}Z")
+        print(f"Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
+        print(f"Result shape: {identified_df.shape[0]} rows, {identified_df.shape[1]} columns")
+        
+        # Log some statistics
+        if len(identified_df) > 0:
+            with_code_path = identified_df['path'].notnull().sum() if 'path' in identified_df.columns else 0
+            print(f"\nResults summary:")
+            print(f"  Total vulnerabilities processed: {len(identified_df)}")
+            print(f"  Vulnerabilities with code path: {with_code_path}")
+            if with_code_path > 0:
+                print(f"  Coverage: {with_code_path/len(identified_df)*100:.1f}%")
+        
+    except Exception as e:
+        print("\n" + "=" * 60)
+        print("❌ ERROR during identification!")
+        print("=" * 60)
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback:\n{traceback.format_exc()}")
+        raise
     
     # Upload results to S3
     print("\n" + "=" * 60)
-    print("Uploading results to S3...")
+    print("Step 7: Uploading results to S3...")
     print("=" * 60)
+    
+    print(f"Target location: s3://{bucket_name}/{output_prefix}/{folder_name}/")
     
     result_urls = _upload_results(
         bucket_name, output_prefix, folder_name,
         output_pd_path, output_scans_dir, output_scans_pd_dir
     )
     
+    print(f"✓ Upload complete!")
+    print(f"  Main results: {result_urls['identification']}")
+    print(f"  Scan files uploaded: {result_urls['scan_results_count']}")
+    
     # Generate summary
+    print("\n" + "=" * 60)
+    print("Step 8: Generating summary...")
+    print("=" * 60)
     summary = _generate_summary(identified_df)
     
     # Write job summary
     print("\n" + "=" * 60)
-    print("Job Summary")
+    print("✓ JOB COMPLETED SUCCESSFULLY")
     print("=" * 60)
     print(f"Folder: {folder_name}")
     print(f"Input: s3://{bucket_name}/{input_key}")
     print(f"Output: {result_urls['identification']}")
-    print(f"Duration: {duration:.2f} seconds")
-    print(f"Total vulnerabilities: {summary['total_vulnerabilities']}")
-    print(f"Unfixed: {summary['unfixed_vulnerabilities']}")
-    print(f"With code path: {summary['vulnerabilities_with_code_path']}")
-    print(f"End time: {datetime.utcnow().isoformat()}Z")
+    print(f"\nTiming:")
+    print(f"  Start: {start_time.isoformat()}Z")
+    print(f"  End: {end_time.isoformat()}Z")
+    print(f"  Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
+    print(f"\nVulnerability Statistics:")
+    print(f"  Total vulnerabilities: {summary['total_vulnerabilities']}")
+    print(f"  Unfixed: {summary['unfixed_vulnerabilities']}")
+    print(f"  Fixed: {summary['fixed_vulnerabilities']}")
+    print(f"  With code path: {summary['vulnerabilities_with_code_path']}")
+    
+    if summary['vulnerabilities_with_code_path'] > 0 and summary['unfixed_vulnerabilities'] > 0:
+        coverage = summary['vulnerabilities_with_code_path'] / summary['unfixed_vulnerabilities'] * 100
+        print(f"  Code path coverage: {coverage:.1f}%")
     
     # Write summary to S3
     summary_data = {

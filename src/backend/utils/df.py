@@ -57,5 +57,7 @@ def save_df(output_df: pd.DataFrame, output_path: str, format: str = "parquet"):
     os.makedirs(directory, exist_ok=True)
     if format == "parquet":
         output_df.to_parquet(output_path, index=False)
+    elif format == "json":
+        output_df.to_json(output_path, orient="records", lines=False)
     else:
         output_df.to_csv(output_path, index=False)

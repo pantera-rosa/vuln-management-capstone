@@ -1,42 +1,30 @@
 # AWS Batch Dockerfile for Vulnerability Code Identification
-# This image runs long-running semgrep scans without Lambda's time constraints
-
-# -----------------------------
-# Build stage
-# -----------------------------
 FROM python:3.13-slim AS build
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
 ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="2.0.1"
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
 ENV PATH=$POETRY_HOME/bin:$PATH
 
-# Setup project
 WORKDIR /app
 ENV POETRY_VIRTUALENVS_IN_PROJECT=1
 
-# Install dependencies
 COPY poetry.lock pyproject.toml ./
 RUN poetry install --only main --no-root
 
-# Install Semgrep
 RUN .venv/bin/pip install semgrep==1.99.0
 
-# Copy source code
 COPY src/backend/workflow/vuln_identify/ ./src/backend/workflow/vuln_identify/
 COPY src/backend/utils/ ./src/backend/utils/
 COPY src/backend/schemas/ ./src/backend/schemas/
 
-# Create __init__.py files
 RUN touch src/__init__.py \
     && touch src/backend/__init__.py \
     && touch src/backend/workflow/__init__.py \
@@ -44,12 +32,8 @@ RUN touch src/__init__.py \
     && touch src/backend/utils/__init__.py \
     && touch src/backend/schemas/__init__.py
 
-# -----------------------------
-# Runtime stage
-# -----------------------------
 FROM python:3.13-slim
 
-# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -57,21 +41,29 @@ RUN apt-get update && apt-get install -y \
     gzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install GitHub CLI
 RUN curl -sSfL https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz && \
     tar -xzf /tmp/gh.tar.gz -C /tmp && \
     mv /tmp/gh_2.62.0_linux_amd64/bin/gh /usr/local/bin/gh && \
     chmod +x /usr/local/bin/gh && \
     rm -rf /tmp/gh.tar.gz /tmp/gh_2.62.0_linux_amd64
 
-# Setup working directory
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    unzip \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf awscliv2.zip aws \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+
 WORKDIR /app
 
-# Copy virtual environment and source code from build stage
 COPY --from=build /app/.venv /app/.venv
 COPY --from=build /app/src /app/src
 
-# Copy semgrep binary from the installed package
 RUN SEMGREP_BIN=$(/app/.venv/bin/python -c "import semgrep, os; print(os.path.join(os.path.dirname(semgrep.__file__), 'bin', 'semgrep-core'))") && \
     if [ -f "$SEMGREP_BIN" ]; then \
         cp "$SEMGREP_BIN" /usr/local/bin/pysemgrep && \
@@ -81,21 +73,17 @@ RUN SEMGREP_BIN=$(/app/.venv/bin/python -c "import semgrep, os; print(os.path.jo
         echo "WARNING: semgrep-core binary not found at $SEMGREP_BIN"; \
     fi
 
-# Create semgrep wrapper script with correct shebang
 RUN echo '#!/app/.venv/bin/python' > /usr/local/bin/semgrep && \
     tail -n +2 /app/.venv/bin/semgrep >> /usr/local/bin/semgrep && \
     chmod +x /usr/local/bin/semgrep
 
-# Set environment variables
 ENV PATH=/usr/local/bin:/app/.venv/bin:$PATH
 ENV PYTHONPATH=/app
 ENV WORKDIR=/app
 ENV PYTHONUNBUFFERED=1
 
-# Copy the batch job script
 COPY src/backend/workflow/vuln_identify/batch_job.py /app/batch_job.py
 
-# Verify installation (simple checks only - no network calls)
 RUN echo "=== Verifying installation ===" && \
     python --version && \
     echo "Checking semgrep binary..." && \
@@ -105,10 +93,9 @@ RUN echo "=== Verifying installation ===" && \
     gh --version && \
     echo "Checking git..." && \
     git --version && \
-    echo "Testing Python imports (using venv Python)..." && \
+    echo "Testing Python imports..." && \
     /app/.venv/bin/python -c "from src.backend.workflow.vuln_identify.vuln_code_identify import vuln_code_identify; print('✓ vuln_code_identify import successful')" && \
     /app/.venv/bin/python -c "import semgrep; print('✓ semgrep module import successful')" && \
     echo "=== All verifications passed ==="
 
-# Set entrypoint to the batch job script (using venv Python)
 ENTRYPOINT ["/app/.venv/bin/python", "-u", "/app/batch_job.py"]

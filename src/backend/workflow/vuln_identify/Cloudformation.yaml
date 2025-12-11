@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "AWS Batch Infrastructure for Vulnerability Code Identification"
+Description: "AWS Batch with EC2 (c6i.4xlarge) for Vulnerability Code Identification"
 
 Parameters:
   S3BucketName:
@@ -24,23 +24,18 @@ Parameters:
   MaxvCpus:
     Type: Number
     Description: Maximum vCPUs for compute environment
-    Default: 16
-
-  JobMemory:
-    Type: Number
-    Description: Memory for each job (in MiB)
-    Default: 32000 
-
-  JobvCpus:
-    Type: Number
-    Description: vCPUs for each job
-    Default: 16
+    Default: 32
+    MinValue: 16
 
 Resources:
+  # ===========================================
+  # IAM Roles
+  # ===========================================
+  
   BatchServiceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: batch-vuln-identify-service-role
+      RoleName: batch-vuln-identify-ec2-service-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -54,7 +49,7 @@ Resources:
   ECSTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: batch-vuln-identify-ecs-execution-role
+      RoleName: batch-vuln-identify-ec2-ecs-execution-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -77,17 +72,19 @@ Resources:
                   - ecr:BatchGetImage
                 Resource: "*"
 
-  BatchJobRole:
+  ECSInstanceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: batch-vuln-identify-job-role
+      RoleName: batch-vuln-identify-ec2-instance-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Service: ecs-tasks.amazonaws.com
+              Service: ec2.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
       Policies:
         - PolicyName: S3Access
           PolicyDocument:
@@ -111,6 +108,42 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
 
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: batch-vuln-identify-ec2-instance-profile
+      Roles:
+        - !Ref ECSInstanceRole
+
+  BatchJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: batch-vuln-identify-ec2-job-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${S3BucketName}"
+                  - !Sub "arn:aws:s3:::${S3BucketName}/*"
+
+  # ===========================================
+  # Networking
+  # ===========================================
+  
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -119,14 +152,14 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: vuln-identify-batch-vpc
+          Value: vuln-identify-batch-ec2-vpc
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: vuln-identify-igw
+          Value: vuln-identify-ec2-igw
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -143,7 +176,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: vuln-identify-public-1
+          Value: vuln-identify-ec2-public-1
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -154,7 +187,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: vuln-identify-public-2
+          Value: vuln-identify-ec2-public-2
 
   RouteTable:
     Type: AWS::EC2::RouteTable
@@ -162,7 +195,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: vuln-identify-public-rt
+          Value: vuln-identify-ec2-rt
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -187,65 +220,77 @@ Resources:
   BatchSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for Batch jobs
+      GroupDescription: Security group for Batch EC2 jobs
       VpcId: !Ref VPC
       SecurityGroupEgress:
         - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: vuln-identify-batch-sg
+          Value: vuln-identify-ec2-sg
 
+  # ===========================================
+  # Batch Compute Environment (EC2)
+  # ===========================================
+  
   ComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     Properties:
-      ComputeEnvironmentName: vuln-identify-compute-env
+      ComputeEnvironmentName: vuln-identify-compute-env-ec2-c6i
       Type: MANAGED
       State: ENABLED
       ServiceRole: !GetAtt BatchServiceRole.Arn
       ComputeResources:
-        Type: FARGATE
+        Type: EC2
+        MinvCpus: 0
         MaxvCpus: !Ref MaxvCpus
+        DesiredvCpus: 0
+        InstanceTypes:
+          - c6i.4xlarge
+        InstanceRole: !GetAtt ECSInstanceProfile.Arn
         Subnets:
           - !Ref PublicSubnet1
           - !Ref PublicSubnet2
         SecurityGroupIds:
           - !Ref BatchSecurityGroup
+        Tags:
+          Name: vuln-identify-batch-worker-ec2
 
+  # ===========================================
+  # Batch Job Queue
+  # ===========================================
+  
   JobQueue:
     Type: AWS::Batch::JobQueue
     Properties:
-      JobQueueName: vuln-identify-queue
+      JobQueueName: vuln-identify-queue-ec2-c6i
       Priority: 1
       State: ENABLED
       ComputeEnvironmentOrder:
         - Order: 1
           ComputeEnvironment: !Ref ComputeEnvironment
 
+  # ===========================================
+  # Batch Job Definition (EC2)
+  # ===========================================
+  
   JobDefinition:
     Type: AWS::Batch::JobDefinition
     Properties:
-      JobDefinitionName: vuln-identify-job
+      JobDefinitionName: vuln-identify-job-ec2-c6i
       Type: container
-      PlatformCapabilities:
-        - FARGATE
       ContainerProperties:
         Image: !Ref ECRImageUri
-        ResourceRequirements:
-          - Type: VCPU
-            Value: !Ref JobvCpus
-          - Type: MEMORY
-            Value: !Ref JobMemory
+        Vcpus: 16
+        Memory: 30720
         JobRoleArn: !GetAtt BatchJobRole.Arn
         ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
-        NetworkConfiguration:
-          AssignPublicIp: ENABLED
         LogConfiguration:
           LogDriver: awslogs
           Options:
             awslogs-group: !Ref LogGroup
             awslogs-region: !Ref AWS::Region
-            awslogs-stream-prefix: vuln-identify
+            awslogs-stream-prefix: vuln-identify-ec2
         Environment:
           - Name: S3_BUCKET
             Value: !Ref S3BucketName
@@ -254,18 +299,26 @@ Resources:
           - Name: SEMGREP_APP_TOKEN
             Value: !Ref SemgrepAppToken
           - Name: ENABLE_DATAFLOW_TRACES
-            Value: "false"
+            Value: 'false'
           - Name: SEMGREP_NUM_JOBS
-            Value: "10"
+            Value: '16'
+          - Name: SEMGREP_TIMEOUT
+            Value: '300'
+          - Name: PYTHONUNBUFFERED
+            Value: '1'
       RetryStrategy:
         Attempts: 1
       Timeout:
-        AttemptDurationSeconds: 7200
+        AttemptDurationSeconds: 28800
 
+  # ===========================================
+  # CloudWatch Logs
+  # ===========================================
+  
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/batch/vuln-identify
+      LogGroupName: /aws/batch/vuln-identify-ec2-c6i
       RetentionInDays: 30
 
 Outputs:
@@ -273,13 +326,13 @@ Outputs:
     Description: ARN of the Batch Job Queue
     Value: !Ref JobQueue
     Export:
-      Name: VulnIdentifyJobQueueArn
+      Name: VulnIdentifyJobQueueArnEC2C6i
 
   JobDefinitionArn:
     Description: ARN of the Batch Job Definition
     Value: !Ref JobDefinition
     Export:
-      Name: VulnIdentifyJobDefinitionArn
+      Name: VulnIdentifyJobDefinitionArnEC2C6i
 
   ComputeEnvironmentArn:
     Description: ARN of the Compute Environment

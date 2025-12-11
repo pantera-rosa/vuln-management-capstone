@@ -12,6 +12,13 @@ awscliv2.zip
 test/
 requirements.txt
 resp.json
+*.json
+*.sh
+buildspec.yaml
+src/backend/workflow/vuln_identify/lambda_function.py
+src/backend/workflow/vuln_identify/Dockerfile
+src/backend/workflow/vuln_identify/buildspec.yaml
+src/backend/workflow/vuln_identify/Cloudformation.yaml
 # Windows Zone.Identifier files
 *:Zone.Identifier
 *.txt:Zone.Identifier

@@ -40,15 +40,20 @@ def run_cmd_and_parse_output(cmd: list[str], return_dict: bool = True, output_pa
 				f.write(output)
 	return output
 
-def run_cmd(cmd: list[str]):
-    proc = None
+def run_cmd(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Run a command and return the completed process."""
     try:
+        print(f"Running command: {' '.join(cmd)}")
         proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"{cmd[0]} executable not found in PATH. Please install {cmd[0]} and ensure it's available.") from e
+        if proc.stdout:
+            print(f"STDOUT: {proc.stdout[:1000]}")  # First 1000 chars
+        return proc
     except subprocess.CalledProcessError as e:
-        print(f"failed to run {cmd} due to error: {e.stderr}")
+        print("=" * 60)
+        print(f"❌ Command failed with exit code {e.returncode}")
+        print("=" * 60)
+        print(f"Command: {' '.join(cmd)}")
+        print(f"\nSTDOUT:\n{e.stdout}")
+        print(f"\nSTDERR:\n{e.stderr}")
+        print("=" * 60)
         raise e
-    except Exception as e:
-        raise RuntimeError(f"failed to run {cmd} due to error: {e.stderr}") from e
-    return proc
