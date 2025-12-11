@@ -67,10 +67,19 @@ def lambda_handler(event, context):
         if 'CommonPrefixes' not in resp or len(resp['CommonPrefixes']) == 0:
             raise RuntimeError(f"No scan folders found in s3://{bucket_name}/{input_prefix}/")
         
-        # Get all folder names (timestamps like 20251106-012915/)
+        # Get all folder names (format: {repo_name}-{timestamp}/)
         folders = [prefix['Prefix'] for prefix in resp['CommonPrefixes']]
-        # Sort to get the latest (most recent timestamp)
-        latest_folder = sorted(folders)[-1]
+        # Sort by the timestamp portion (last part after splitting by '-') to get the most recent
+        # Extract timestamp from folder name like "juice-shop-20251211-050000" -> "20251211-050000"
+        def get_timestamp(folder_path):
+            folder_name = folder_path.rstrip('/').split('/')[-1]
+            # Split by '-' and take the last 2 parts (date and time)
+            parts = folder_name.split('-')
+            if len(parts) >= 2:
+                return '-'.join(parts[-2:])  # Returns "20251211-050000"
+            return folder_name
+
+        latest_folder = sorted(folders, key=get_timestamp)[-1]
         scan_prefix = latest_folder
         folder_name = latest_folder.rstrip('/').split('/')[-1]
     
