@@ -14,7 +14,7 @@ def save_assessment_frames(
 ) -> Dict[str, str]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    ts = stem or datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    ts = stem or datetime.utcnow().strftime("%Y%m%d")
 
     paths: Dict[str, str] = {}
     csv_path = out / f"assessment_{ts}.csv"

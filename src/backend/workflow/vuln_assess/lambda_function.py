@@ -15,7 +15,10 @@ def lambda_handler(event, context):
     bucket_name = os.environ['S3_BUCKET']
     input_prefix = os.environ.get('S3_INPUT_PREFIX', 'scans').rstrip('/')
     output_prefix = os.environ.get('S3_OUTPUT_PREFIX', 'assessments').rstrip('/')
-    
+
+    # Get repo_name from event (passed from detect step)
+    repo_name = event.get('repo_name', None)
+
     # Check if a specific folder was provided in the event
     folder_name = event.get('folder')
     
