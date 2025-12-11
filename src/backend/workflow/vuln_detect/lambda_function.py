@@ -32,7 +32,7 @@ def lambda_handler(event, context):
     output_prefix = os.environ.get('OUTPUT_PREFIX', 'scans').rstrip('/')
     
     # Get repository URL from event
-    repo_url = event.get('repo_url', "https://github.com/apache/logging-log4j1.git")
+    repo_url = event.get('repo_url')
     if not repo_url:
         raise ValueError("repo_url is required in the event")
     
