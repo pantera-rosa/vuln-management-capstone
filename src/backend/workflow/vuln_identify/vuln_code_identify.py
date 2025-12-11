@@ -443,9 +443,11 @@ def _extract_semgrep_df(semgrep_result: Dict[str, Any], output_path: str) -> pd.
     for col in ['extra.dataflow_trace.taint_source', 'extra.dataflow_trace.intermediate_vars', 'extra.dataflow_trace.taint_sink']:
         if col not in semgrep_df.columns:
             semgrep_df[col] = np.nan
-    # extract relevant columns
+    # extract relevant columns (only those that exist in the DataFrame)
     relevant_columns = ['path', 'start.line', 'start.col', 'start.offset', 'end.line', 'end.col', 'end.offset', 'extra.message', 'extra.metadata.cwe', "extra.metadata.likelihood", "extra.metadata.impact", "extra.metadata.confidence", "extra.metadata.vulnerability_class", "extra.severity", "extra.lines", "extra.validation_state", "extra.fix", "extra.dataflow_trace.taint_source", "extra.dataflow_trace.intermediate_vars", "extra.dataflow_trace.taint_sink"]
-    semgrep_extracted_df = semgrep_df[relevant_columns] 
+    # filter to only columns that exist
+    existing_columns = [col for col in relevant_columns if col in semgrep_df.columns]
+    semgrep_extracted_df = semgrep_df[existing_columns] 
     semgrep_extracted_df = semgrep_extracted_df.explode(['extra.metadata.cwe'])
     semgrep_extracted_df[['cwe_id', 'cwe_name']] = semgrep_extracted_df['extra.metadata.cwe'].str.split(': ', expand=True)
     semgrep_extracted_df.drop(columns=['cwe_name','extra.metadata.cwe'], inplace=True)
