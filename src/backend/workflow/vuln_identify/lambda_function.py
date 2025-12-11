@@ -26,7 +26,7 @@ def lambda_handler(event, context):
     
     Environment Variables:
         S3_BUCKET: S3 bucket name
-        S3_INPUT_PREFIX: Prefix for input scan files (default: 'verademo')
+        S3_INPUT_PREFIX: Prefix for input scan files (default: 'scans')
         S3_OUTPUT_PREFIX: Prefix for output identification files (default: 'identifications')
         GH_TOKEN: GitHub personal access token for gh CLI
         SEMGREP_APP_TOKEN: (optional) Semgrep app token for enhanced results
@@ -39,7 +39,7 @@ def lambda_handler(event, context):
     
     # Configuration via environment variables
     bucket_name = os.environ['S3_BUCKET']
-    input_prefix = os.environ.get('S3_INPUT_PREFIX', 'verademo').rstrip('/')
+    input_prefix = os.environ.get('S3_INPUT_PREFIX', 'scans').rstrip('/')
     output_prefix = os.environ.get('S3_OUTPUT_PREFIX', 'identifications').rstrip('/')
     
     # Validate required environment variables
