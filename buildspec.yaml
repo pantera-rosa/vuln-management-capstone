@@ -36,7 +36,7 @@ phases:
     commands:
       - echo "Installing Python dependencies..."
       - export PATH="/root/.local/bin:$PATH"
-      - poetry install --no-root
+      - poetry install --only main --no-root
       - poetry run pip install semgrep==1.99.0
       - echo "Configuring GitHub authentication..."
       - git config --global credential.helper store
