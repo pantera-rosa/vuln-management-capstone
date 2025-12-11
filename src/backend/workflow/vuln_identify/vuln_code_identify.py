@@ -79,9 +79,33 @@ def _upload_to_s3(local_path: str, s3_bucket: str, s3_key: str) -> Optional[str]
         return None
 
 
+def _extract_timestamp_from_folder(folder_path: str) -> datetime:
+    """
+    Extract timestamp from folder name with format: name-YYYYMMDD-HHMMSS
+    
+    Args:
+        folder_path: S3 folder path
+    
+    Returns:
+        datetime object, or datetime.min if parsing fails
+    """
+    folder_name = folder_path.rstrip('/').split('/')[-1]
+    # Extract the timestamp part (last two parts: YYYYMMDD-HHMMSS)
+    parts = folder_name.split('-')
+    if len(parts) >= 2:
+        try:
+            # Combine last two parts: e.g., "20251202" + "010250"
+            timestamp_str = parts[-2] + parts[-1]
+            return datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+        except (ValueError, IndexError):
+            return datetime.min
+    return datetime.min
+
+
 def _find_latest_scan_in_s3(s3_bucket: str, s3_input_prefix: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Find the latest scan folder and parquet file in S3.
+    Sorts folders by timestamp extracted from folder name (format: name-YYYYMMDD-HHMMSS).
     
     Args:
         s3_bucket: S3 bucket name
@@ -104,9 +128,9 @@ def _find_latest_scan_in_s3(s3_bucket: str, s3_input_prefix: str) -> Tuple[Optio
             print(f"No scan folders found in s3://{s3_bucket}/{s3_input_prefix}/")
             return None, None
         
-        # Get all folder names and sort to find latest
+        # Get all folder names and sort by timestamp to find latest
         folders = [prefix['Prefix'] for prefix in resp['CommonPrefixes']]
-        latest_folder = sorted(folders)[-1]
+        latest_folder = max(folders, key=_extract_timestamp_from_folder)
         folder_name = latest_folder.rstrip('/').split('/')[-1]
         
         print(f"Found latest scan folder: {folder_name}")
