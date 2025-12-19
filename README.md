@@ -13,6 +13,20 @@ Automated Detection, Identification, Assessment, and Remediation of Unfixed Soft
       `brew install gh`
       `python3 -m pip install semgrep`
 
+### Configuration
+Setup the following in your `.env` file:
+```
+GITHUB_ORG_NAME=...(name of GitHub org, defaults to Vuln-Guard)
+GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_...(GitHub PAT w/ no permissions)
+GH_TOKEN=github_pat_...(GitHub org PAT w/ Read access to metadata, Read and Write access to administration)
+SEMGREP_APP_TOKEN=...(Semgrep CLI token)
+HF_TOKEN=hf_...(Hugging Face token)
+```
+Where to generate these tokens:
+- Github: https://github.com/settings/personal-access-tokens
+- Semgrep: https://semgrep.dev/orgs/vuln_guard/settings/tokens/cli
+- Hugging Face: https://huggingface.co/settings/tokens
+
 ### Setup & Usage (Poetry + Make)
 
 ```bash

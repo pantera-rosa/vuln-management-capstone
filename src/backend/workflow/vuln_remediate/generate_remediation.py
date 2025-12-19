@@ -13,7 +13,7 @@ import re
 load_dotenv()
 
 GH_TOKEN = os.environ.get("GH_TOKEN", "")
-GITHUB_ORG_NAME = "Vuln-Guard"
+GITHUB_ORG_NAME = os.environ.get("GITHUB_ORG_NAME", "Vuln-Guard")
 
 
 def generate_remediation(
