@@ -1,0 +1,11 @@
+{
+  "account": "$.account",
+  "build-id": "$.detail.build-id",
+  "detail-type": "$.detail-type",
+  "id": "$.id",
+  "region": "$.region",
+  "resources": "$.resources",
+  "source": "$.source",
+  "time": "$.time",
+  "version": "$.version"
+}

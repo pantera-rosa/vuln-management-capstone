@@ -1,0 +1,17 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:InvokeModelWithResponseStream"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:us-east-1:654654605701:inference-profile/us.anthropic.claude-3-5-haiku-20241022-v1:0",
+                "arn:aws:bedrock:us-east-1:654654605701:inference-profile/us.meta.llama3-3-70b-instruct-v1:0",
+                "arn:aws:bedrock:*::foundation-model/*"
+            ]
+        }
+    ]
+}

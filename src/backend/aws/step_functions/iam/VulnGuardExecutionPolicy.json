@@ -1,0 +1,70 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "InvokeLambdaFunctions",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:InvokeFunction"
+            ],
+            "Resource": [
+                "arn:aws:lambda:*:*:function:vg-vuln-scan",
+                "arn:aws:lambda:*:*:function:vuln-assess"
+            ]
+        },
+        {
+            "Sid": "StartCodeBuildProject",
+            "Effect": "Allow",
+            "Action": [
+                "codebuild:StartBuild",
+                "codebuild:StopBuild",
+                "codebuild:BatchGetBuilds"
+            ],
+            "Resource": [
+                "arn:aws:codebuild:*:*:project/vuln-identify-codebuild",
+                "arn:aws:codebuild:*:*:project/vuln-remediation"
+            ]
+        },
+        {
+            "Sid": "EventBridgeManagement",
+            "Effect": "Allow",
+            "Action": [
+                "events:PutTargets",
+                "events:PutRule",
+                "events:DescribeRule",
+                "events:DeleteRule",
+                "events:RemoveTargets",
+                "events:ListRules",
+                "events:ListTargetsByRule"
+            ],
+            "Resource": [
+                "arn:aws:events:*:654654605701:rule/StepFunctionsGetEventsForCodeBuildStartBuildRule",
+                "arn:aws:events:*:654654605701:rule/StepFunctionsGetEvents*"
+            ]
+        },
+        {
+            "Sid": "IAMPassRoleForEventBridge",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "arn:aws:iam::654654605701:role/VulnGuardStepFunctionsRole",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "events.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Sid": "XRayTracing",
+            "Effect": "Allow",
+            "Action": [
+                "xray:PutTraceSegments",
+                "xray:PutTelemetryRecords",
+                "xray:GetSamplingRules",
+                "xray:GetSamplingTargets"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

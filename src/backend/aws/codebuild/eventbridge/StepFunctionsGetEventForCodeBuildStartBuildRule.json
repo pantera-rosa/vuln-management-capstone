@@ -1,0 +1,22 @@
+{
+  "source": [
+    "aws.codebuild"
+  ],
+  "detail-type": [
+    "CodeBuild Build State Change"
+  ],
+  "detail": {
+    "build-status": [
+      "SUCCEEDED",
+      "FAILED",
+      "FAULT",
+      "TIMED_OUT",
+      "STOPPED"
+    ],
+    "additional-information": {
+      "initiator": [{
+        "prefix": "states/"
+      }]
+    }
+  }
+}
