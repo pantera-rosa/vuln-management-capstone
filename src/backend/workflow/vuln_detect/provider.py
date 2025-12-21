@@ -15,7 +15,6 @@ def fetch_ghsa_details(ghsa_id: str) -> dict:
     }
     if GITHUB_PERSONAL_ACCESS_TOKEN:
         headers["Authorization"] = f"Bearer {GITHUB_PERSONAL_ACCESS_TOKEN}"
-        print("Using GitHub Personal Access Token for authentication.")
 
     ghsa_json = asyncio.run(get_json(ghsa_url, headers=headers))
     return ghsa_json

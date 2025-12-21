@@ -20,7 +20,7 @@ load_dotenv()
 
 GH_TOKEN = os.environ.get("GH_TOKEN", "")
 SEMGREP_APP_TOKEN = os.environ.get("SEMGREP_APP_TOKEN", "")
-GITHUB_ORG_NAME = "Vuln-Guard"
+GITHUB_ORG_NAME = os.environ.get("GITHUB_ORG_NAME", "Vuln-Guard")
 
 # Initialize S3 client (will be None if not using S3)
 _s3_client = None
