@@ -1,0 +1,21 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:us-east-1:654654605701:log-group:/aws/lambda/trigger-vuln-pipeline*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "states:StartExecution"
+            ],
+            "Resource": "arn:aws:states:us-east-1:654654605701:stateMachine:VulnGuardPipeline"
+        }
+    ]
+}

@@ -1,0 +1,71 @@
+version: 0.2
+
+# Use ECR image (set this in CodeBuild project settings or via environment variable)
+# image: <your-account-id>.dkr.ecr.us-east-1.amazonaws.com/vuln-remediate:latest
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    S3_BUCKET: "vg-vuln-scan-artifacts-20251016215106"
+    S3_ASSESSMENTS_PREFIX: "assessments"
+    S3_REMEDIATION_PREFIX: "remediations"
+    MODEL_ID: "us.meta.llama3-3-70b-instruct-v1:0"
+    USE_BEDROCK: "true"
+    USE_4BIT_QUANTIZATION: "false"
+    PYTHONUNBUFFERED: "1"
+
+  parameter-store:
+    GH_TOKEN: "/vuln-identify/github-token"
+    HF_TOKEN: "/vuln-remediate/huggingface-token"
+
+phases:
+  pre_build:
+    commands:
+      - echo "Using ECR image - dependencies already installed"
+      - git config --global credential.helper store
+      - git config --global url."https://oauth2:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+      - echo "Installing AWS CLI..."
+      - |
+        if ! command -v aws &> /dev/null; then
+          apt-get update -qq
+          apt-get install -y unzip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -o -q awscliv2.zip
+          ./aws/install
+          rm -rf awscliv2.zip aws
+          echo "AWS CLI installed successfully"
+        else
+          echo "AWS CLI already installed"
+        fi
+      - aws --version
+      - echo "Verifying environment..."
+      - python3 --version
+      - poetry --version || echo "Poetry not in PATH (expected if using ECR image)"
+      - gh --version || echo "GitHub CLI not found"
+      - echo "Downloading cloned repos from identify step..."
+      - mkdir -p artifacts/identify/repos
+      - |
+        if aws s3 ls s3://${S3_BUCKET}/identify/repos/ 2>/dev/null; then
+          aws s3 sync s3://${S3_BUCKET}/identify/repos/ ./artifacts/identify/repos/ --quiet
+          echo "Downloaded repos from S3"
+          ls -la ./artifacts/identify/repos/
+        else
+          echo "⚠️  No repos found in S3, remediation may fail if vulnerabilities need code context"
+        fi
+
+  build:
+    commands:
+      - echo "Starting remediation workflow..."
+      - export PYTHONPATH="$CODEBUILD_SRC_DIR:$PYTHONPATH"
+      - aws sts get-caller-identity
+      - aws s3 ls s3://$S3_BUCKET/$S3_ASSESSMENTS_PREFIX/ --recursive | head -5
+      - python3 scripts/run_remediation_from_build.py
+
+artifacts:
+  files:
+    - "**/*"
+  name: "remediation-output"
+
+cache:
+  paths:
+    - "artifacts/identify/repos/**/*" # Cloned repos (already downloaded from S3, but cache speeds up repeat builds)

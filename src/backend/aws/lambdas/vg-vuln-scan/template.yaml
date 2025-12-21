@@ -1,0 +1,50 @@
+# This AWS SAM template has been generated from your function's configuration. If
+# your function has one or more triggers, note that the AWS resources associated
+# with these triggers aren't fully specified in this template and include
+# placeholder values. Open this template in AWS Infrastructure Composer or your
+# favorite IDE and modify it to specify a serverless application with other AWS
+# resources.
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: An AWS Serverless Application Model template describing your function.
+Resources:
+  vgvulnscan:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: ''
+      MemorySize: 2048
+      Timeout: 900
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 4096
+      Environment:
+        Variables:
+          OUTPUT_PREFIX: scans
+          S3_BUCKET: vg-vuln-scan-artifacts-20251016215106
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 21600
+        MaximumRetryAttempts: 2
+        DestinationConfig: {}
+      ImageUri: 654654605701.dkr.ecr.us-east-1.amazonaws.com/vg-vuln-scan:latest
+      PackageType: Image
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: arn:aws:logs:us-east-1:654654605701:*
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:ListBucket
+              Resource:
+                - arn:aws:s3:::vg-vuln-scan-artifacts-20251016215106
+                - arn:aws:s3:::vg-vuln-scan-artifacts-20251016215106/*
+      RecursiveLoop: Terminate
+      SnapStart:
+        ApplyOn: None
