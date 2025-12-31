@@ -1,0 +1,36 @@
+[project]
+name = "src"
+version = "0.1.0"
+description = "VulnGuard"
+authors = [
+    {name = "Jacqueline Tiffany Yeung",email = "jtyeung168@berkeley.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas (>=2.3.3,<3.0.0)",
+    "pyarrow (>=21.0.0,<22.0.0)",
+    "httpx (>=0.27.0)",
+    "tenacity (>=8.2.3)",
+    "python-dotenv (>=1.0.1)",
+    "numpy (>=1.24.0)",
+    "boto3 (>=1.34.0)",
+    "requests (>=2.32.5,<3.0.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+
+[tool.poetry.group.remediate.dependencies]
+torch = ">=2.4.0,<3.0.0"
+transformers = ">=4.46.0,<5.0.0"
+accelerate = ">=0.20.0"
+bitsandbytes = ">=0.41.0"
+
+[tool.poetry.group.api.dependencies]
+fastapi = {extras = ["standard"], version = ">=0.117.1,<0.118.0"}

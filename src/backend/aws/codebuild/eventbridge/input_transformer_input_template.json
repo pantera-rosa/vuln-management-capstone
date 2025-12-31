@@ -1,0 +1,13 @@
+{
+  "version": <version>,
+  "id": <id>,
+  "detail-type": <detail-type>,
+  "source": <source>,
+  "account": <account>,
+  "time": <time>,
+  "region": <region>,
+  "resources": <resources>,
+  "detail": {
+    "build-id": <build-id>
+  }
+}

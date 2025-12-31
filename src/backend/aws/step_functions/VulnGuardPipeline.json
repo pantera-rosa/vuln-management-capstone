@@ -1,0 +1,228 @@
+{
+  "Comment": "VulnGuard vulnerability management pipeline - orchestrates detection, identification, and assessment",
+  "StartAt": "VulnDetect",
+  "States": {
+    "VulnDetect": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "vg-vuln-scan",
+        "Payload": {
+          "repo_url.$": "$.repo_url",
+          "execution_id.$": "$$.Execution.Name"
+        }
+      },
+      "ResultPath": "$.detect_result",
+      "ResultSelector": {
+        "statusCode.$": "$.Payload.statusCode",
+        "body.$": "$.Payload.body"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "DetectionFailed"
+        }
+      ],
+      "Next": "ParseDetectResult"
+    },
+    "ParseDetectResult": {
+      "Type": "Pass",
+      "Comment": "Parse the JSON string body into an object",
+      "Parameters": {
+        "statusCode.$": "$.detect_result.statusCode",
+        "body.$": "States.StringToJson($.detect_result.body)"
+      },
+      "ResultPath": "$.detect_result",
+      "Next": "VulnIdentify"
+    },
+    "VulnIdentify": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::codebuild:startBuild.sync",
+      "Parameters": {
+        "ProjectName": "vuln-identify-codebuild",
+        "EnvironmentVariablesOverride": [
+          {
+            "Name": "S3_BUCKET",
+            "Value.$": "$.s3_bucket",
+            "Type": "PLAINTEXT"
+          },
+          {
+            "Name": "SCAN_FOLDER",
+            "Value.$": "$.detect_result.body.scan_id",
+            "Type": "PLAINTEXT"
+          },
+          {
+            "Name": "INPUT_PREFIX",
+            "Value": "scans",
+            "Type": "PLAINTEXT"
+          },
+          {
+            "Name": "OUTPUT_PREFIX",
+            "Value": "identify",
+            "Type": "PLAINTEXT"
+          },
+          {
+            "Name": "REPO_URL",
+            "Value.$": "$.repo_url",
+            "Type": "PLAINTEXT"
+          }
+        ]
+      },
+      "ResultPath": "$.identify_result",
+      "ResultSelector": {
+        "buildId.$": "$.Build.Id",
+        "buildStatus.$": "$.Build.BuildStatus",
+        "logs.$": "$.Build.Logs.DeepLink"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "IdentificationFailed"
+        }
+      ],
+      "Next": "VulnAssess"
+    },
+    "VulnAssess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "vuln-assess",
+        "Payload": {
+          "folder.$": "$.detect_result.body.scan_id",
+          "s3_bucket.$": "$.s3_bucket"
+        }
+      },
+      "ResultPath": "$.assess_result",
+      "ResultSelector": {
+        "folder.$": "$.Payload.folder",
+        "output_files.$": "$.Payload.output_files",
+        "risk_summary.$": "$.Payload.risk_summary",
+        "total_findings.$": "$.Payload.total_findings"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "AssessmentFailed"
+        }
+      ],
+      "Next": "VulnRemediate"
+    },
+    "VulnRemediate": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::codebuild:startBuild.sync",
+      "Parameters": {
+        "ProjectName": "vuln-remediation",
+        "EnvironmentVariablesOverride": [
+          {
+            "Name": "S3_BUCKET",
+            "Value.$": "$.s3_bucket",
+            "Type": "PLAINTEXT"
+          },
+          {
+            "Name": "INPUT_PREFIX",
+            "Value": "assessments",
+            "Type": "PLAINTEXT"
+          },
+          {
+            "Name": "OUTPUT_PREFIX",
+            "Value": "remediations",
+            "Type": "PLAINTEXT"
+          }
+        ]
+      },
+      "ResultPath": "$.remediations_result",
+      "ResultSelector": {
+        "buildId.$": "$.Build.Id",
+        "buildStatus.$": "$.Build.BuildStatus",
+        "logs.$": "$.Build.Logs.DeepLink"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "RemediationFailed"
+        }
+      ],
+      "Next": "PipelineSuccess"
+    },
+    "PipelineSuccess": {
+      "Type": "Succeed",
+      "OutputPath": "$"
+    },
+    "DetectionFailed": {
+      "Type": "Fail",
+      "Error": "DetectionError",
+      "Cause": "Vulnerability detection stage failed"
+    },
+    "IdentificationFailed": {
+      "Type": "Fail",
+      "Error": "IdentificationError",
+      "Cause": "Vulnerability identification stage failed"
+    },
+    "AssessmentFailed": {
+      "Type": "Fail",
+      "Error": "AssessmentError",
+      "Cause": "Vulnerability assessment stage failed"
+    },
+    "RemediationFailed": {
+      "Type": "Fail",
+      "Error": "RemediationError",
+      "Cause": "Vulnerability remediation stage failed"
+    }
+  }
+}
